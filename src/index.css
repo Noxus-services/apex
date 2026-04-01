@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=JetBrains+Mono:wght@400;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  body {
+    background: #0a0a0a;
+    color: #f0ede6;
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  input[type=number] { -moz-appearance: textfield; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+}
+
+@layer components {
+  .card { @apply bg-bg-surface border border-border-subtle rounded-md p-4; }
+  .card-elevated { @apply bg-bg-elevated border border-border-default rounded-lg p-4; }
+  .btn-primary {
+    @apply bg-accent-yellow text-bg-base font-body font-medium
+           rounded-md px-6 h-16 text-base
+           active:scale-95 transition-transform duration-100
+           flex items-center justify-center gap-2 select-none;
+  }
+  .btn-secondary {
+    @apply bg-bg-elevated border border-border-default text-[#f0ede6]
+           rounded-md px-6 h-14 text-base
+           active:scale-95 transition-transform duration-100
+           flex items-center justify-center gap-2 select-none;
+  }
+  .btn-danger {
+    @apply bg-accent-red/10 border border-accent-red/30 text-accent-red
+           rounded-md px-6 h-14 text-base
+           active:scale-95 transition-transform duration-100
+           flex items-center justify-center gap-2 select-none;
+  }
+  .number-display { @apply font-display text-[#f0ede6] leading-none; }
+  .data-value { @apply font-mono text-[#f0ede6]; }
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0
+           bg-bg-surface/95 backdrop-blur-sm
+           border-t border-border-subtle;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .page-container {
+    @apply min-h-screen bg-bg-base pb-24;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .ai-card {
+    @apply bg-accent-blue/5 border border-accent-blue/20 rounded-lg p-4;
+  }
+}
