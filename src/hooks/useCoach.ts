@@ -163,6 +163,7 @@ export function useCoach() {
       },
       async (_: string) => {
         coachStore.finalizeStream()
+        coachStore.setSearching(false)
 
         const assistantMsg: CoachMessage = {
           role: 'assistant',
@@ -174,9 +175,12 @@ export function useCoach() {
       },
       (error: Error) => {
         coachStore.setStreaming(false)
+        coachStore.setSearching(false)
         console.error('[useCoach] streamResponse error:', error)
       },
-      systemExtra
+      systemExtra,
+      () => coachStore.setSearching(true),
+      () => coachStore.setSearching(false),
     )
   }
 

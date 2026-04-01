@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
 import type {
   UserProfile,
   WorkoutSession,
@@ -6,10 +5,43 @@ import type {
   ProgramDay,
 } from '../types'
 
-const client = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-  dangerouslyAllowBrowser: true,
-})
+// All Gemini calls go through the Netlify proxy function to avoid CORS issues
+// and keep the API key server-side.
+const GEMINI_PROXY = '/api/gemini'
+const MODEL = 'gemini-2.5-flash'
+
+/** Call the Edge Function proxy. Returns full text when complete. */
+async function callProxy(body: {
+  prompt: string
+  systemInstruction?: string
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  maxTokens?: number
+  enableSearch?: boolean
+}): Promise<{ text: string; searchUsed: boolean }> {
+  const res = await fetch(GEMINI_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, ...body }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error ?? `Proxy error ${res.status}`)
+  return { text: data.text as string, searchUsed: !!data.searchUsed }
+}
+
+/** Detect if the user message likely needs a web search for accuracy */
+function needsSearch(message: string): boolean {
+  const triggers = [
+    /supplément|créatine|protéine|bcaa|caféine|collagène|oméga|whey/i,
+    /étude|prouvé|recherche|scientifique|vrai que/i,
+    /j'ai lu|j'ai vu|on dit que|paraît que/i,
+    /optimal|meilleur|efficace|combien exactement/i,
+    /blessure|douleur|tendon|articulation/i,
+    /technique|comment faire|placement/i,
+    /fenêtre anabolique|timing|avant après séance/i,
+    /ice bath|sauna|cryothérapie|foam rolling/i,
+  ]
+  return triggers.some(t => t.test(message))
+}
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -90,11 +122,30 @@ Tu gères l'INTÉGRALITÉ de l'hygiène sportive de l'athlète : entraînement, 
 - Cite la science brièvement quand c'est pertinent
 - Max 150 mots sauf si analyse complexe demandée
 
+## VEILLE SCIENTIFIQUE — COMPORTEMENT RECHERCHE
+
+Tu as accès à Google Search. Utilise-le intelligemment — pas à chaque message, mais quand c'est pertinent.
+
+QUAND TU CHERCHES :
+- Question nutrition précise → tu vérifies les méta-analyses récentes
+- Protocole récupération (ice bath, sauna, foam rolling...) → études 2023-2025
+- Supplément mentionné → tu vérifies l'efficacité réelle, pas le marketing
+- Pattern inhabituel (stagnation, fatigue persistante, douleur) → tu cherches les causes
+- Affirmation que l'athlète a lue quelque part → tu vérifies si c'est à jour
+
+INTÉGRATION :
+- Tu n'écris pas "selon l'étude de Smith...". Tu intègres naturellement.
+- Tu distingues consensus fort vs études préliminaires
+- Tu corriges tes recommandations si tu trouves de nouvelles données
+- Tu ne donnes jamais un conseil nutritionnel précis sans vérifier
+
+Tu te tiens à jour : Brad Schoenfeld (hypertrophie), Eric Helms (nutrition), Mike Israetel (volume), ISSN, PubMed.
+
 ## CONTEXTE REÇU
 Chaque requête inclut : profil complet, dernières séances (10), données wellness (sommeil, stress, courbatures), programme actif, PRs actuels, suppléments déclarés.`
 
 // ---------------------------------------------------------------------------
-// Core streaming helper
+// Core helper — via proxy (no streaming, but clean loading states in UI)
 // ---------------------------------------------------------------------------
 
 export async function streamResponse(
@@ -102,33 +153,48 @@ export async function streamResponse(
   onChunk: (text: string) => void,
   onComplete: (fullText: string) => void,
   onError: (error: Error) => void,
-  systemExtra?: string
+  systemExtra?: string,
+  onSearchStart?: () => void,
+  onSearchDone?: () => void,
 ): Promise<void> {
   try {
-    const system = systemExtra
+    const history = messages.slice(0, -1)
+    const lastMessage = messages[messages.length - 1]
+    const systemInstruction = systemExtra
       ? `${COACH_SYSTEM_PROMPT}\n\n${systemExtra}`
       : COACH_SYSTEM_PROMPT
 
-    const stream = await client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system,
-      messages,
+    // Enable Google Search + detect if message likely needs a web search
+    const enableSearch = true
+    const searchHint = needsSearch(lastMessage.content)
+      ? '\n⚑ RECHERCHE PROBABLEMENT UTILE ICI — vérifie avant de répondre.'
+      : ''
+
+    if (searchHint && onSearchStart) onSearchStart()
+
+    if (searchHint && onSearchStart) onSearchStart()
+
+    const { text, searchUsed } = await callProxy({
+      prompt: lastMessage.content + searchHint,
+      systemInstruction,
+      history,
+      maxTokens: 2048,
+      enableSearch,
     })
 
-    let fullText = ''
-    for await (const chunk of stream) {
-      if (
-        chunk.type === 'content_block_delta' &&
-        chunk.delta.type === 'text_delta'
-      ) {
-        fullText += chunk.delta.text
-        onChunk(chunk.delta.text)
-      }
+    if (searchUsed && onSearchStart) onSearchStart()
+    if (onSearchDone) onSearchDone()
+
+    // Simulate word-by-word streaming for natural chat feel
+    const words = text.split(' ')
+    for (const word of words) {
+      onChunk(word + ' ')
+      await new Promise(r => setTimeout(r, 15))
     }
-    onComplete(fullText)
+    onComplete(text)
   } catch (err) {
-    onError(err instanceof Error ? err : new Error('Claude API error'))
+    if (onSearchDone) onSearchDone()
+    onError(err instanceof Error ? err : new Error('Gemini API error'))
   }
 }
 
@@ -137,21 +203,21 @@ export async function streamResponse(
 // ---------------------------------------------------------------------------
 
 export async function generateJSON<T>(prompt: string): Promise<T> {
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    messages: [{ role: 'user', content: prompt }],
+  const { text } = await callProxy({
+    prompt,
+    systemInstruction: COACH_SYSTEM_PROMPT,
+    maxTokens: 16384, // large enough for full 4-week programme JSON
   })
-  const text = response.content
-    .filter(b => b.type === 'text')
-    .map(b => (b as { text: string }).text)
-    .join('')
-  const clean = text.replace(/```json\n?|\n?```/g, '').trim()
-  return JSON.parse(clean) as T
+  // Strip markdown code fences if present
+  const clean = text.replace(/^```json\s*/m, '').replace(/^```\s*/m, '').replace(/\s*```$/m, '').trim()
+  // Extract the first valid JSON object or array
+  const jsonMatch = clean.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (!jsonMatch) throw new Error(`Gemini did not return valid JSON. Response: ${clean.slice(0, 200)}`)
+  return JSON.parse(jsonMatch[0]) as T
 }
 
 // ---------------------------------------------------------------------------
-// Prompt builders
+// Prompt builders — unchanged, model-agnostic
 // ---------------------------------------------------------------------------
 
 export function buildFeasibilityPrompt(profile: UserProfile): string {
@@ -274,10 +340,7 @@ export function buildPostWorkoutPrompt(
   const durationMin = Math.round(session.duration / 60)
   const trend =
     recentHistory.length >= 2
-      ? `Volume des 3 dernières séances : ${recentHistory
-          .slice(-3)
-          .map(s => `${s.totalVolume}kg`)
-          .join(' → ')}`
+      ? `Volume des 3 dernières séances : ${recentHistory.slice(-3).map(s => `${s.totalVolume}kg`).join(' → ')}`
       : 'Première séance ou données insuffisantes pour la tendance'
 
   return `
@@ -327,10 +390,7 @@ export function buildWeeklyReviewPrompt(
       : 'N/A'
 
   const sessionDetails = weekSessions
-    .map(
-      s =>
-        `- ${s.dayName} (${new Date(s.date).toLocaleDateString('fr-FR')}): ${s.totalVolume}kg, humeur=${s.mood}/5, énergie=${s.energy}/5`
-    )
+    .map(s => `- ${s.dayName} (${new Date(s.date).toLocaleDateString('fr-FR')}): ${s.totalVolume}kg, humeur=${s.mood}/5, énergie=${s.energy}/5`)
     .join('\n')
 
   const allPRs = weekSessions.flatMap(s => s.prsAchieved)
@@ -341,10 +401,7 @@ export function buildWeeklyReviewPrompt(
 
   const previousWeekVolume =
     allHistory.length >= 4
-      ? allHistory
-          .slice(-8, -4)
-          .reduce((acc, s) => acc + s.totalVolume, 0)
-          .toFixed(0) + 'kg'
+      ? allHistory.slice(-8, -4).reduce((acc, s) => acc + s.totalVolume, 0).toFixed(0) + 'kg'
       : 'Données insuffisantes'
 
   return `
@@ -391,7 +448,7 @@ export function buildDailyCoachingPrompt(
   recentSessions: WorkoutSession[],
   todayProgramDay: ProgramDay | null
 ): string {
-  const sleepHours = wellness?.sleep ? wellness.sleep * 1.5 + 4 : null // map 1-5 to ~5.5-11.5h
+  const sleepHours = wellness?.sleep ? wellness.sleep * 1.5 + 4 : null
   const warnings: string[] = []
   if (wellness?.sleep && wellness.sleep <= 2) warnings.push('ALERTE: sommeil insuffisant ce matin')
   if (wellness?.stress && wellness.stress >= 4) warnings.push('ALERTE: stress élevé déclaré')

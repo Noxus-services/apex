@@ -10,12 +10,14 @@ interface CoachState {
   // UI-only (not persisted)
   isOpen: boolean
   isStreaming: boolean
+  isSearching: boolean   // Google Search grounding in progress
   streamingContent: string
   isChatOpen: boolean
 
   // Actions
   addMessage: (message: CoachMessage) => void
   setStreaming: (val: boolean) => void
+  setSearching: (val: boolean) => void
   appendStreamChunk: (text: string) => void
   finalizeStream: () => void
   setWeeklyReview: (review: WeeklyReview) => void
@@ -34,6 +36,7 @@ export const useCoachStore = create<CoachState>()(
       // UI state (defaults, not saved)
       isOpen: false,
       isStreaming: false,
+      isSearching: false,
       streamingContent: '',
       isChatOpen: false,
 
@@ -43,6 +46,10 @@ export const useCoachStore = create<CoachState>()(
 
       setStreaming: (val: boolean) => {
         set({ isStreaming: val, streamingContent: val ? '' : get().streamingContent })
+      },
+
+      setSearching: (val: boolean) => {
+        set({ isSearching: val })
       },
 
       appendStreamChunk: (text: string) => {

@@ -46,7 +46,7 @@ export function SessionSummary({ session, onDone }: SessionSummaryProps) {
       initial={{ opacity: 0, y: 60 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-      className="min-h-screen bg-bg-base pb-32 flex flex-col"
+      className="h-full bg-bg-base flex flex-col"
     >
       {/* Header */}
       <div className="bg-bg-surface border-b border-border-subtle px-5 pt-6 pb-5">
@@ -184,8 +184,8 @@ export function SessionSummary({ session, onDone }: SessionSummaryProps) {
         </div>
       </div>
 
-      {/* Fixed bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-bg-base border-t border-border-subtle px-4 py-4 pb-8">
+      {/* Bottom CTA */}
+      <div className="flex-shrink-0 bg-bg-base border-t border-border-subtle px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
         <button onClick={onDone} className="btn-primary w-full">
           TERMINER
         </button>

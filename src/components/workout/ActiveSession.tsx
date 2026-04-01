@@ -346,9 +346,9 @@ export function ActiveSession({ onFinish, onCancel }: ActiveSessionProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-base">
-      {/* ── Fixed header ────────────────────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-20 bg-bg-surface border-b border-border-subtle">
+    <div className="flex flex-col h-full bg-bg-base">
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 bg-bg-surface border-b border-border-subtle">
         {/* Row 1: Day name + timer */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <span className="font-display text-[18px] text-[#f0ede6] tracking-wide">
@@ -378,7 +378,7 @@ export function ActiveSession({ onFinish, onCancel }: ActiveSessionProps) {
       </div>
 
       {/* ── Scrollable content ──────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pt-[100px] pb-36 px-4 flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto pb-4 px-4 flex flex-col gap-6">
 
         {/* ACTIVE EXERCISE SECTION */}
         {exercises.map((ex, exIdx) => {
@@ -518,7 +518,7 @@ export function ActiveSession({ onFinish, onCancel }: ActiveSessionProps) {
       <RestTimer timer={timer} />
 
       {/* ── Bottom actions ───────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-bg-base border-t border-border-subtle px-4 py-3 flex gap-3">
+      <div className="flex-shrink-0 bg-bg-base border-t border-border-subtle px-4 py-3 flex gap-3">
         {!allDone && (
           <button
             onClick={() => setShowFinish(true)}

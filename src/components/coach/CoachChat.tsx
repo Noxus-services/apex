@@ -65,7 +65,7 @@ function StreamingBubble({ content }: { content: string }) {
 
 export function CoachChat({ isOpen, onClose }: CoachChatProps) {
   const { sendMessage } = useCoach()
-  const { messages, isStreaming, streamingContent } = useCoachStore()
+  const { messages, isStreaming, isSearching, streamingContent } = useCoachStore()
   const [inputText, setInputText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -147,6 +147,19 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
           {chatMessages.map((msg, idx) => (
             <MessageBubble key={msg.id ?? idx} message={msg} />
           ))}
+
+          {/* Google Search indicator */}
+          {isSearching && (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <span
+                className="w-2 h-2 rounded-full bg-accent-yellow"
+                style={{ animation: 'pulse 1s ease-in-out infinite' }}
+              />
+              <span className="text-xs text-[rgba(240,237,230,0.45)] italic font-body">
+                MAX vérifie les dernières données...
+              </span>
+            </div>
+          )}
 
           {isStreaming && streamingContent && (
             <StreamingBubble content={streamingContent} />

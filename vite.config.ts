@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       manifest: {
         name: 'APEX — Coach Musculation IA',
         short_name: 'APEX',
@@ -21,20 +24,8 @@ export default defineConfig({
           { src: '/icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts', expiration: { maxEntries: 10, maxAgeSeconds: 31536000 } },
-          },
-          {
-            urlPattern: /^https:\/\/v2\.exercisedb\.io\/image\//,
-            handler: 'CacheFirst',
-            options: { cacheName: 'exercise-gifs', expiration: { maxEntries: 500, maxAgeSeconds: 2592000 } },
-          },
-        ],
       },
     }),
   ],

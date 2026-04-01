@@ -1,6 +1,6 @@
-import { Home, Dumbbell, TrendingUp, MessageCircle, User } from 'lucide-react'
+import { Home, Dumbbell, CalendarDays, MessageCircle, User } from 'lucide-react'
 
-type Page = 'home' | 'workout' | 'history' | 'coach' | 'profile'
+type Page = 'home' | 'workout' | 'history' | 'coach' | 'profile' | 'journee'
 
 interface NavBarProps {
   currentPage: Page
@@ -8,11 +8,11 @@ interface NavBarProps {
 }
 
 const tabs: { id: Page; label: string; icon: React.ElementType }[] = [
-  { id: 'home', label: 'Accueil', icon: Home },
-  { id: 'workout', label: 'Séance', icon: Dumbbell },
-  { id: 'history', label: 'Historique', icon: TrendingUp },
-  { id: 'coach', label: 'Coach', icon: MessageCircle },
-  { id: 'profile', label: 'Profil', icon: User },
+  { id: 'home',    label: 'Accueil',  icon: Home },
+  { id: 'workout', label: 'Séance',   icon: Dumbbell },
+  { id: 'journee', label: 'Journée',  icon: CalendarDays },
+  { id: 'coach',   label: 'Coach',    icon: MessageCircle },
+  { id: 'profile', label: 'Profil',   icon: User },
 ]
 
 export function NavBar({ currentPage, onNavigate }: NavBarProps) {

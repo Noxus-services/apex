@@ -4,24 +4,100 @@
 @tailwind utilities;
 
 @layer base {
-  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  /* ── Reset & shell ─────────────────────────────────────── */
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    height: 100%;
+  }
+
   body {
-    background: #0a0a0a;
+    height: 100%;
+    background: #050505; /* outer frame on desktop */
     color: #f0ede6;
     font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
+    overflow: hidden;          /* no body scroll ever */
     overscroll-behavior: none;
   }
+
+  /* ── Phone shell — the entire app lives here ───────────── */
+  #root {
+    height: 100dvh;            /* dynamic viewport: handles mobile address bar */
+    max-width: 430px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background: #0a0a0a;
+    /* subtle border on desktop so it looks like a phone */
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px rgba(0,0,0,0.8);
+    /* make #root the containing block for fixed-position descendants
+       so overlays, bottom sheets and FABs stay inside the phone shell */
+    transform: translateZ(0);
+  }
+
   * { -webkit-tap-highlight-color: transparent; }
+
+  /* ── Number inputs — remove spinners ───────────────────── */
   input[type=number] { -moz-appearance: textfield; }
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* ── Time input — dark style ───────────────────────────── */
+  input[type=time]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.4);
+  }
+
+  /* ── Scrollbar — minimal ───────────────────────────────── */
+  ::-webkit-scrollbar { width: 2px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
 }
 
 @layer components {
+  /* ── Scrollable page area (sits in flex-1 of #root) ────── */
+  .page-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Fixed-height page (no scroll — e.g. Active Session) ─ */
+  .page-fixed {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Onboarding — full overlay within #root ────────────── */
+  .onboarding-shell {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: #0a0a0a;
+    overflow: hidden;
+  }
+
+  /* ── Bottom nav — in flow (not fixed) ──────────────────── */
+  .bottom-nav {
+    flex-shrink: 0;
+    background: rgba(17,17,17,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ── Cards ─────────────────────────────────────────────── */
   .card { @apply bg-bg-surface border border-border-subtle rounded-md p-4; }
   .card-elevated { @apply bg-bg-elevated border border-border-default rounded-lg p-4; }
+  .ai-card { @apply bg-accent-blue/5 border border-accent-blue/20 rounded-lg p-4; }
+
+  /* ── Buttons ────────────────────────────────────────────── */
   .btn-primary {
     @apply bg-accent-yellow text-bg-base font-body font-medium
            rounded-md px-6 h-16 text-base
@@ -40,19 +116,13 @@
            active:scale-95 transition-transform duration-100
            flex items-center justify-center gap-2 select-none;
   }
+
+  /* ── Typography helpers ─────────────────────────────────── */
   .number-display { @apply font-display text-[#f0ede6] leading-none; }
   .data-value { @apply font-mono text-[#f0ede6]; }
-  .bottom-nav {
-    @apply fixed bottom-0 left-0 right-0
-           bg-bg-surface/95 backdrop-blur-sm
-           border-t border-border-subtle;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .page-container {
-    @apply min-h-screen bg-bg-base pb-24;
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-  .ai-card {
-    @apply bg-accent-blue/5 border border-accent-blue/20 rounded-lg p-4;
+
+  /* ── Safe-area top padding for page headers ─────────────── */
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 12px);
   }
 }

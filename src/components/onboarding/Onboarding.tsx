@@ -213,6 +213,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   // Step 5 — Finalization
   const [injuries, setInjuries] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   function goNext() {
     setDirection(1)
@@ -238,6 +239,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   async function handleGenerate() {
     if (!goal || !experience || !daysPerWeek) return
+    setError(null)
 
     const profile: UserProfile = {
       name: name.trim() || 'Athlète',
@@ -258,7 +260,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
     setIsLoading(true)
 
-    // Cycle loading messages
     let msgIdx = 0
     const interval = setInterval(() => {
       msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length
@@ -290,13 +291,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
       setLoadingMsgIdx(3)
 
-      // Save program to db
       await db.programs.add(program)
-
-      // Save user profile to db
       await db.userProfile.add(profile)
 
-      // Set up supplement schedules
       if (supplements.length > 0) {
         const defaultTimes: Record<string, string> = {
           Créatine: '08:00',
@@ -308,35 +305,33 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           BCAA: trainingTime,
           ZMA: '22:00',
         }
-
         const schedules: SupplementSchedule[] = supplements.map(supp => ({
           supplement: supp,
           timeOfDay: defaultTimes[supp] ?? '08:00',
           notes: '',
           enabled: true,
         }))
-
         await db.supplementSchedules.bulkAdd(schedules)
       }
 
-      // Save to store
       setProfile(profile)
-
       clearInterval(interval)
       setIsLoading(false)
       onComplete()
     } catch (err) {
       clearInterval(interval)
-      console.error('[Onboarding] generate error:', err)
       setIsLoading(false)
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue'
+      console.error('[Onboarding] generate error:', err)
+      setError(`Erreur IA : ${msg.slice(0, 120)}`)
     }
   }
 
   return (
-    <div className="min-h-screen bg-bg-base overflow-hidden relative">
+    <div className="h-full bg-bg-base overflow-hidden relative">
       {isLoading && <LoadingOverlay messageIndex={loadingMsgIdx} />}
 
-      <div className="relative h-screen overflow-hidden">
+      <div className="relative h-full overflow-hidden">
         <AnimatePresence custom={direction} mode="wait">
           {/* ── Step 1: Welcome ─────────────────────────────────────────── */}
           {step === 1 && (
@@ -748,6 +743,12 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                   {EXPERIENCE_OPTIONS.find(e => e.value === experience)?.label}
                 </p>
               </div>
+
+              {error && (
+                <div className="mb-3 px-4 py-3 rounded-md bg-accent-red/10 border border-accent-red/30 text-accent-red font-body text-sm">
+                  {error}
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button variant="secondary" size="md" onClick={goBack} className="w-14 flex-shrink-0">
