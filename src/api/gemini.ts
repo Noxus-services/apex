@@ -239,13 +239,13 @@ export async function streamResponse(
       ? `${COACH_SYSTEM_PROMPT}\n\n${systemExtra}`
       : COACH_SYSTEM_PROMPT
 
-    // Enable Google Search + detect if message likely needs a web search
-    const enableSearch = true
-    const searchHint = needsSearch(lastMessage.content)
+    // Enable Google Search only when the message likely needs it (saves 5-10s)
+    const enableSearch = needsSearch(lastMessage.content)
+    const searchHint = enableSearch
       ? '\n⚑ RECHERCHE PROBABLEMENT UTILE ICI — vérifie avant de répondre.'
       : ''
 
-    if (searchHint && onSearchStart) onSearchStart()
+    if (enableSearch && onSearchStart) onSearchStart()
 
     const { text, searchUsed } = await callProxy({
       prompt: lastMessage.content + searchHint,
@@ -337,8 +337,8 @@ export async function generateJSON<T>(
   prompt: string,
   options?: { enableSearch?: boolean; maxTokens?: number }
 ): Promise<T> {
-  // 14 000 tokens: enough for a 4-week program, within Netlify edge 30s timeout
-  const maxTokens = options?.maxTokens ?? 14000
+  // 7 000 tokens: enough for a 4-week program and safe within Vercel's 30s edge timeout
+  const maxTokens = options?.maxTokens ?? 7000
 
   let lastError: Error | null = null
 
