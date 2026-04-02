@@ -2,32 +2,32 @@ export const config = { runtime: 'edge' }
 
 /**
  * Vercel Edge Function — Gemini API proxy
- * Reads Gemini streaming response, returns full JSON when complete.
+ *
+ * KEY DESIGN: returns a ReadableStream immediately so the edge function
+ * satisfies Vercel's "time to first byte" timeout. The actual Gemini
+ * streaming work runs asynchronously and writes the final JSON to the
+ * stream when complete. The client calls response.json() which naturally
+ * waits for the stream to close — no client changes needed.
  */
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export default async function handler(request: Request): Promise<Response> {
-  // Always return JSON — wrap everything so Vercel never serves its own error page
-  try {
-    return await handleRequest(request)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return json({ error: `Edge function crashed: ${msg}` }, 500)
-  }
-}
-
-async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response('', { status: 204, headers: cors() })
   }
   if (request.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405)
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...cors(), 'Content-Type': 'application/json' },
+    })
   }
 
-  // Try both env var names — VITE_ prefix works in Vercel dashboard
   const apiKey = process.env.GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY
-  if (!apiKey) return json({ error: 'GEMINI_API_KEY not configured (check Vercel env vars)' }, 500)
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), {
+      status: 500, headers: { ...cors(), 'Content-Type': 'application/json' },
+    })
+  }
 
   let body: {
     model?: string
@@ -40,7 +40,9 @@ async function handleRequest(request: Request): Promise<Response> {
   try {
     body = await request.json()
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400)
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400, headers: { ...cors(), 'Content-Type': 'application/json' },
+    })
   }
 
   const {
@@ -52,7 +54,6 @@ async function handleRequest(request: Request): Promise<Response> {
     enableSearch = false,
   } = body
 
-  // Build conversation
   const contents: unknown[] = []
   for (const msg of history) {
     contents.push({
@@ -66,8 +67,6 @@ async function handleRequest(request: Request): Promise<Response> {
     contents,
     generationConfig: {
       maxOutputTokens: maxTokens,
-      // Disable chain-of-thought thinking — thinking tokens eat into the budget
-      // and slow down responses. Coaching tasks don't need deep reasoning chains.
       thinkingConfig: { thinkingBudget: 0 },
     },
   }
@@ -78,91 +77,96 @@ async function handleRequest(request: Request): Promise<Response> {
     payload.tools = [{ googleSearch: {} }]
   }
 
-  // Use streaming endpoint to avoid timeout — read all chunks, return full text
-  const geminiRes = await fetch(
-    `${API_BASE}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }
-  )
+  // ── Streaming pattern ─────────────────────────────────────────────────────
+  // We return a ReadableStream IMMEDIATELY so Vercel's "time to first byte"
+  // timeout is never hit. Gemini work runs async and writes the JSON result
+  // to the writable end. The client's response.json() waits for stream close.
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+  const writer = writable.getWriter()
+  const encoder = new TextEncoder()
 
-  if (!geminiRes.ok || !geminiRes.body) {
-    let errMsg = `HTTP ${geminiRes.status}`
+  ;(async () => {
     try {
-      const errData = await geminiRes.json()
-      errMsg = errData?.error?.message ?? errMsg
-    } catch { /* ignore */ }
-    return json({ error: errMsg }, geminiRes.status)
-  }
+      const geminiRes = await fetch(
+        `${API_BASE}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
 
-  // Read entire SSE stream, collect text from all chunks
-  const reader = geminiRes.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  let fullText = ''
-  let searchUsed = false
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-
-    // Process complete SSE events (separated by \r\n\r\n or \n\n)
-    let sepIdx: number
-    while (true) {
-      // Try both separators
-      const crlfIdx = buf.indexOf('\r\n\r\n')
-      const lfIdx = buf.indexOf('\n\n')
-      if (crlfIdx === -1 && lfIdx === -1) break
-
-      if (crlfIdx !== -1 && (lfIdx === -1 || crlfIdx <= lfIdx)) {
-        sepIdx = crlfIdx
-        const event = buf.slice(0, sepIdx)
-        buf = buf.slice(sepIdx + 4)
-        processEvent(event)
-      } else {
-        sepIdx = lfIdx
-        const event = buf.slice(0, sepIdx)
-        buf = buf.slice(sepIdx + 2)
-        processEvent(event)
+      if (!geminiRes.ok || !geminiRes.body) {
+        let errMsg = `HTTP ${geminiRes.status}`
+        try {
+          const errData = await geminiRes.json()
+          errMsg = errData?.error?.message ?? errMsg
+        } catch { /* ignore */ }
+        await writer.write(encoder.encode(JSON.stringify({ error: errMsg })))
+        await writer.close()
+        return
       }
-    }
-  }
 
-  // Process any remaining data
-  if (buf.trim()) processEvent(buf)
+      const reader = geminiRes.body.getReader()
+      const dec = new TextDecoder()
+      let buf = ''
+      let fullText = ''
+      let searchUsed = false
 
-  return json({ text: fullText, searchUsed })
+      function processEvent(event: string) {
+        const lines = event.split(/\r?\n/)
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue
+          const jsonStr = line.slice(5).trim()
+          if (!jsonStr || jsonStr === '[DONE]') continue
+          try {
+            const chunk = JSON.parse(jsonStr)
+            const parts = chunk?.candidates?.[0]?.content?.parts ?? []
+            for (const part of parts) {
+              if (part.thought) continue
+              if (typeof part.text === 'string' && part.text) fullText += part.text
+            }
+            if (chunk?.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length) {
+              searchUsed = true
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
 
-  function processEvent(event: string) {
-    const lines = event.split(/\r?\n/)
-    for (const line of lines) {
-      if (!line.startsWith('data:')) continue
-      const jsonStr = line.slice(5).trim()
-      if (!jsonStr || jsonStr === '[DONE]') continue
-      try {
-        const chunk = JSON.parse(jsonStr)
-        const parts = chunk?.candidates?.[0]?.content?.parts ?? []
-        for (const part of parts) {
-          // Skip internal thinking parts
-          if (part.thought) continue
-          if (typeof part.text === 'string' && part.text) {
-            fullText += part.text
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+
+        while (true) {
+          const crlfIdx = buf.indexOf('\r\n\r\n')
+          const lfIdx = buf.indexOf('\n\n')
+          if (crlfIdx === -1 && lfIdx === -1) break
+
+          if (crlfIdx !== -1 && (lfIdx === -1 || crlfIdx <= lfIdx)) {
+            processEvent(buf.slice(0, crlfIdx))
+            buf = buf.slice(crlfIdx + 4)
+          } else {
+            processEvent(buf.slice(0, lfIdx))
+            buf = buf.slice(lfIdx + 2)
           }
         }
-        if (chunk?.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length) {
-          searchUsed = true
-        }
-      } catch { /* skip malformed */ }
-    }
-  }
-}
+      }
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
+      if (buf.trim()) processEvent(buf)
+
+      await writer.write(encoder.encode(JSON.stringify({ text: fullText, searchUsed })))
+      await writer.close()
+    } catch (err) {
+      try {
+        const msg = err instanceof Error ? err.message : String(err)
+        await writer.write(encoder.encode(JSON.stringify({ error: msg })))
+        await writer.close()
+      } catch { /* stream already closed */ }
+    }
+  })()
+
+  return new Response(readable, {
     headers: { ...cors(), 'Content-Type': 'application/json' },
   })
 }
