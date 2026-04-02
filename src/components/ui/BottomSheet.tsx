@@ -32,8 +32,8 @@ export function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-bg-surface border-t border-border-default rounded-t-xl overflow-hidden"
-            style={{ maxHeight: height }}
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 bg-bg-surface border-t border-border-default rounded-t-xl overflow-hidden"
+            style={{ maxHeight: height, width: '100%', maxWidth: '430px' }}
           >
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-border-strong" />
