@@ -96,7 +96,7 @@ export function ExerciseCard({ exercise, onClick }: ExerciseCardProps) {
             {nameFr.toUpperCase()}
           </p>
           {/* English name (muted) */}
-          <p className="text-xs text-[rgba(240,237,230,0.3)] font-body">{name}</p>
+          <p className="text-xs text-[rgba(240,237,230,0.55)] font-body">{name}</p>
 
           {/* Body part + equipment tags */}
           <div className="flex flex-wrap gap-1.5 mt-0.5">
@@ -118,7 +118,7 @@ export function ExerciseCard({ exercise, onClick }: ExerciseCardProps) {
             {secondaryMuscles.slice(0, 2).map(m => (
               <span
                 key={m}
-                className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded-full bg-bg-overlay text-[rgba(240,237,230,0.35)] border border-border-subtle"
+                className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded-full bg-bg-overlay text-[rgba(240,237,230,0.6)] border border-border-subtle"
               >
                 {m}
               </span>

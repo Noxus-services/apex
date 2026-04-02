@@ -69,11 +69,11 @@ function ExerciseDetailSheet({
             <h2 className="font-display text-xl text-[#f0ede6] leading-tight">
               {exercise.nameFr.toUpperCase()}
             </h2>
-            <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">{exercise.name}</p>
+            <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">{exercise.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-[rgba(240,237,230,0.4)] p-1 -mr-1"
+            className="text-[rgba(240,237,230,0.7)] p-1 -mr-1"
           >
             <X size={22} />
           </button>
@@ -84,7 +84,7 @@ function ExerciseDetailSheet({
 
         {/* Muscles Diagram */}
         <div className="flex flex-col items-center gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest self-start">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest self-start">
             Muscles sollicités
           </p>
           <MusclesDiagram
@@ -108,7 +108,7 @@ function ExerciseDetailSheet({
           {exercise.secondaryMuscles.map(m => (
             <span
               key={m}
-              className="font-mono text-[10px] uppercase tracking-wide px-3 py-1 rounded-full bg-bg-overlay border border-border-subtle text-[rgba(240,237,230,0.35)]"
+              className="font-mono text-[10px] uppercase tracking-wide px-3 py-1 rounded-full bg-bg-overlay border border-border-subtle text-[rgba(240,237,230,0.6)]"
             >
               {m}
             </span>
@@ -118,13 +118,13 @@ function ExerciseDetailSheet({
         {/* Instructions */}
         {exercise.instructions && exercise.instructions.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+            <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
               Instructions
             </p>
             <ol className="flex flex-col gap-3">
               {exercise.instructions.map((step, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-accent-blue/10 border border-accent-blue/20 flex items-center justify-center font-mono text-xs text-accent-blue flex-shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-accent-yellow/10 border border-accent-yellow/20 flex items-center justify-center font-mono text-xs text-accent-yellow flex-shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   <p className="font-body text-sm text-[rgba(240,237,230,0.75)] leading-relaxed">{step}</p>
@@ -211,19 +211,19 @@ export function ExerciseLibrary({ sessionActive = false, onAddToSession }: Exerc
       <div className="relative">
         <Search
           size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[rgba(240,237,230,0.3)]"
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[rgba(240,237,230,0.55)]"
         />
         <input
           type="text"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Rechercher un exercice..."
-          className="w-full bg-bg-elevated border border-border-default rounded-xl pl-10 pr-10 py-3 font-body text-sm text-[#f0ede6] placeholder:text-[rgba(240,237,230,0.3)] outline-none focus:border-accent-blue/40 transition-colors"
+          className="w-full bg-bg-elevated border border-border-default rounded-xl pl-10 pr-10 py-3 font-body text-sm text-[#f0ede6] placeholder:text-[rgba(240,237,230,0.55)] outline-none focus:border-accent-yellow/40 transition-colors"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(240,237,230,0.3)]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(240,237,230,0.55)]"
           >
             <X size={16} />
           </button>
@@ -248,7 +248,7 @@ export function ExerciseLibrary({ sessionActive = false, onAddToSession }: Exerc
       </div>
 
       {/* Results count */}
-      <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+      <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
         {filtered.length} exercice{filtered.length !== 1 ? 's' : ''}
       </p>
 

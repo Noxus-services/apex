@@ -5,7 +5,7 @@ import {
   buildPostWorkoutPrompt,
   buildWeeklyReviewPrompt,
   buildDailyCoachingPrompt,
-} from '../api/claude'
+} from '../api/gemini'
 import { db } from '../db/database'
 import type { WorkoutSession, ProgramDay, CoachMessage, WeeklyReview } from '../types'
 
@@ -142,11 +142,10 @@ export function useCoach() {
     coachStore.addMessage(newUserMsg)
     await db.coachMessages.add(newUserMsg)
 
-    const history = coachStore.messages.slice(-10)
-    const messagesForApi: Array<{ role: 'user' | 'assistant'; content: string }> = [
-      ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: userMessage },
-    ]
+    // history already includes the new user message (added above via addMessage)
+    const history = coachStore.messages.slice(-20)
+    const messagesForApi: Array<{ role: 'user' | 'assistant'; content: string }> =
+      history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
     // Build comprehensive context
     const systemExtra = await getContextForCoach()
@@ -283,11 +282,11 @@ export function useCoach() {
   // Weekly review — now generates proper JSON metadata
   // ---------------------------------------------------------------------------
 
-  async function checkWeeklyReview() {
+  async function checkWeeklyReview(force = false) {
     if (!profile) return
 
     const now = new Date()
-    if (now.getDay() !== 0 || now.getHours() < 18) return
+    if (!force && (now.getDay() !== 0 || now.getHours() < 18)) return
 
     const lastReview = await db.weeklyReviews.orderBy('generatedAt').last()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)

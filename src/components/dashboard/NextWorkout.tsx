@@ -1,9 +1,39 @@
+import { useState } from 'react'
 import { Button } from '../ui/Button'
-import type { Program } from '../../types'
+import type { Program, WorkoutSession, DailyWellness } from '../../types'
 
 interface NextWorkoutProps {
   program: Program | null
+  sessions: WorkoutSession[]
+  wellness?: DailyWellness | null
   onStart: () => void
+}
+
+function getSuggestedWeight(
+  exerciseName: string,
+  sessions: WorkoutSession[],
+  repsMax: number
+): { weight: number; isProgression: boolean } | null {
+  const sorted = [...sessions].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  )
+  for (const s of sorted) {
+    const found = s.exercises.find(
+      e => e.name.toLowerCase() === exerciseName.toLowerCase()
+    )
+    if (found) {
+      const workSets = found.sets.filter(ws => !ws.isWarmup && ws.completed)
+      if (workSets.length > 0) {
+        const lastSet = workSets[workSets.length - 1]
+        const hitTop = lastSet.reps >= repsMax
+        const weight = hitTop
+          ? Math.round((lastSet.weight + 2.5) * 100) / 100
+          : lastSet.weight
+        return { weight, isProgression: hitTop }
+      }
+    }
+  }
+  return null
 }
 
 function getTodayDayIndex(): number {
@@ -12,7 +42,9 @@ function getTodayDayIndex(): number {
   return d === 0 ? 7 : d
 }
 
-export function NextWorkout({ program, onStart }: NextWorkoutProps) {
+export function NextWorkout({ program, sessions, wellness, onStart }: NextWorkoutProps) {
+  const [showAll, setShowAll] = useState(false)
+
   if (!program) {
     return (
       <div className="card-elevated flex flex-col gap-3">
@@ -56,15 +88,19 @@ export function NextWorkout({ program, onStart }: NextWorkoutProps) {
     )
   }
 
-  const previewExercises = todayDay.exercises.slice(0, 3).map(e => e.name).join(' · ')
-  const moreCount = todayDay.exercises.length - 3
-  const preview = moreCount > 0 ? `${previewExercises} · +${moreCount}` : previewExercises
+  const wellnessAlert = wellness
+    ? wellness.stressLevel >= 4 || wellness.soreness >= 4
+      ? { level: 'warning' as const, msg: `⚠️ Stress ${wellness.stressLevel}/5, courbatures ${wellness.soreness}/5 — volume -20%, RPE ≤ 7 recommandé.` }
+      : wellness.motivation <= 2
+      ? { level: 'info' as const, msg: `🔋 Motivation ${wellness.motivation}/5 — commence quand même, ça monte vite.` }
+      : null
+    : null
 
   return (
     <div className="card-elevated flex flex-col gap-4">
       {/* Header */}
       <div>
-        <p className="font-body text-xs text-[rgba(240,237,230,0.4)] uppercase tracking-widest mb-1">
+        <p className="font-body text-xs text-[rgba(240,237,230,0.7)] uppercase tracking-widest mb-1">
           Séance du jour
         </p>
         <h2 className="font-display text-3xl text-[#f0ede6] leading-none">
@@ -75,10 +111,49 @@ export function NextWorkout({ program, onStart }: NextWorkoutProps) {
         </p>
       </div>
 
-      {/* Exercise preview */}
-      <p className="font-body text-sm text-[rgba(240,237,230,0.7)] leading-relaxed">
-        {preview}
-      </p>
+      {wellnessAlert && (
+        <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs font-body leading-relaxed border ${
+          wellnessAlert.level === 'warning'
+            ? 'bg-orange-500/5 border-orange-500/20 text-[rgba(240,237,230,0.75)]'
+            : 'bg-accent-yellow/5 border-accent-yellow/15 text-[rgba(240,237,230,0.7)]'
+        }`}>
+          <span className="flex-shrink-0">{wellnessAlert.level === 'warning' ? '⚠️' : '💡'}</span>
+          <span>{wellnessAlert.msg}</span>
+        </div>
+      )}
+
+      {/* Exercise targets */}
+      <div className="flex flex-col gap-1.5">
+        {(showAll ? todayDay.exercises : todayDay.exercises.slice(0, 4)).map(ex => {
+          const suggestion = getSuggestedWeight(ex.name, sessions, ex.repsMax)
+          return (
+            <div key={ex.name} className="flex items-center gap-2">
+              <span className="font-body text-xs text-[rgba(240,237,230,0.7)] flex-1 truncate">
+                {ex.name}
+              </span>
+              {suggestion ? (
+                <span className={`font-mono text-xs font-semibold flex-shrink-0 ${
+                  suggestion.isProgression ? 'text-accent-yellow' : 'text-[rgba(240,237,230,0.6)]'
+                }`}>
+                  {suggestion.isProgression && '↑ '}{suggestion.weight}kg
+                </span>
+              ) : (
+                <span className="font-mono text-xs text-[rgba(240,237,230,0.35)] flex-shrink-0">
+                  {ex.sets}×{ex.repsMin}-{ex.repsMax}
+                </span>
+              )}
+            </div>
+          )
+        })}
+        {todayDay.exercises.length > 4 && (
+          <button
+            onClick={() => setShowAll(v => !v)}
+            className="font-body text-xs text-accent-yellow/70 text-left mt-0.5 active:opacity-70"
+          >
+            {showAll ? '▲ Réduire' : `▼ +${todayDay.exercises.length - 4} exercices`}
+          </button>
+        )}
+      </div>
 
       {/* Stats row */}
       <div className="flex gap-4">
@@ -86,21 +161,21 @@ export function NextWorkout({ program, onStart }: NextWorkoutProps) {
           <span className="font-mono text-accent-yellow text-lg leading-none">
             {todayDay.estimatedDuration}
           </span>
-          <span className="font-body text-xs text-[rgba(240,237,230,0.4)]">min</span>
+          <span className="font-body text-xs text-[rgba(240,237,230,0.7)]">min</span>
         </div>
         <div className="w-px bg-border-subtle" />
         <div className="flex flex-col">
           <span className="font-mono text-[#f0ede6] text-lg leading-none">
             {todayDay.exercises.length}
           </span>
-          <span className="font-body text-xs text-[rgba(240,237,230,0.4)]">exercices</span>
+          <span className="font-body text-xs text-[rgba(240,237,230,0.7)]">exercices</span>
         </div>
         <div className="w-px bg-border-subtle" />
         <div className="flex flex-col">
           <span className="font-mono text-[#f0ede6] text-lg leading-none">
             Sem. {program.weekNumber}
           </span>
-          <span className="font-body text-xs text-[rgba(240,237,230,0.4)]">programme</span>
+          <span className="font-body text-xs text-[rgba(240,237,230,0.7)]">programme</span>
         </div>
       </div>
 

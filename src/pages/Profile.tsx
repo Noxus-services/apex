@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Pencil, Check, X, AlertTriangle, Download, RefreshCw, Eye, EyeOff } from 'lucide-react'
+import { Pencil, Check, X, AlertTriangle, Download, RefreshCw } from 'lucide-react'
 import { useUserStore } from '../store/userStore'
 import { useCoachStore } from '../store/coachStore'
+import { useCoach } from '../hooks/useCoach'
 import { db } from '../db/database'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import type { SupplementSchedule, Program } from '../types'
+import type { SupplementSchedule, Program, WeeklyReview } from '../types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ function InlineEdit({ label, value, unit, type = 'text', onSave }: InlineEditPro
 
   return (
     <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border-subtle last:border-0">
-      <span className="font-body text-xs text-[rgba(240,237,230,0.45)] w-28 flex-shrink-0">{label}</span>
+      <span className="font-body text-xs text-[rgba(240,237,230,0.72)] w-28 flex-shrink-0">{label}</span>
       {editing ? (
         <div className="flex items-center gap-2 flex-1">
           <input
@@ -73,13 +74,13 @@ function InlineEdit({ label, value, unit, type = 'text', onSave }: InlineEditPro
               if (e.key === 'Enter') handleSave()
               if (e.key === 'Escape') handleCancel()
             }}
-            className="flex-1 bg-bg-elevated border border-accent-blue/40 rounded-lg px-3 py-1.5 font-body text-sm text-[#f0ede6] outline-none"
+            className="flex-1 bg-bg-elevated border border-accent-yellow/30 rounded-lg px-3 py-1.5 font-body text-sm text-[#f0ede6] outline-none"
           />
-          {unit && <span className="font-body text-xs text-[rgba(240,237,230,0.4)]">{unit}</span>}
+          {unit && <span className="font-body text-xs text-[rgba(240,237,230,0.7)]">{unit}</span>}
           <button onClick={handleSave} className="text-green-400 p-1">
             <Check size={16} />
           </button>
-          <button onClick={handleCancel} className="text-[rgba(240,237,230,0.4)] p-1">
+          <button onClick={handleCancel} className="text-[rgba(240,237,230,0.7)] p-1">
             <X size={16} />
           </button>
         </div>
@@ -90,7 +91,7 @@ function InlineEdit({ label, value, unit, type = 'text', onSave }: InlineEditPro
           </span>
           <button
             onClick={() => setEditing(true)}
-            className="text-[rgba(240,237,230,0.3)] hover:text-[rgba(240,237,230,0.6)] transition-colors p-1"
+            className="text-[rgba(240,237,230,0.55)] hover:text-[rgba(240,237,230,0.6)] transition-colors p-1"
           >
             <Pencil size={13} />
           </button>
@@ -104,19 +105,25 @@ function InlineEdit({ label, value, unit, type = 'text', onSave }: InlineEditPro
 
 export function ProfilePage() {
   const { profile, updateProfile } = useUserStore()
-  const { clearMessages } = useCoachStore()
 
   const [supplements, setSupplements] = useState<SupplementSchedule[]>([])
   const [activeProgram, setActiveProgram] = useState<Program | null>(null)
+  const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReview[]>([])
+  const [showReviews, setShowReviews] = useState(false)
 
-  const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('apex_api_key') ?? ''
-  })
-  const [apiKeyVisible, setApiKeyVisible] = useState(false)
-  const [apiKeySaved, setApiKeySaved] = useState(false)
-
+  const { checkWeeklyReview } = useCoach()
   const [regenerating, setRegenerating] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [generatingReview, setGeneratingReview] = useState(false)
+
+  async function handleGenerateWeeklyReview() {
+    setGeneratingReview(true)
+    try {
+      await checkWeeklyReview(true)
+    } finally {
+      setGeneratingReview(false)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -124,6 +131,8 @@ export function ProfilePage() {
       setSupplements(sups)
       const prog = await db.programs.filter(p => p.isActive === true).first()
       setActiveProgram(prog ?? null)
+      const reviews = await db.weeklyReviews.orderBy('generatedAt').reverse().limit(10).toArray()
+      setWeeklyReviews(reviews)
     }
     load()
   }, [])
@@ -151,23 +160,6 @@ export function ProfilePage() {
     if (id === undefined) return
     await db.supplementSchedules.update(id, { timeOfDay: time })
     setSupplements(prev => prev.map(s => s.id === id ? { ...s, timeOfDay: time } : s))
-  }
-
-  // ── API Key ──────────────────────────────────────────────────────────────────
-
-  function handleSaveApiKey() {
-    if (apiKey.trim()) {
-      localStorage.setItem('apex_api_key', apiKey.trim())
-    } else {
-      localStorage.removeItem('apex_api_key')
-    }
-    setApiKeySaved(true)
-    setTimeout(() => setApiKeySaved(false), 2500)
-  }
-
-  function maskedKey(key: string): string {
-    if (!key || key.length < 8) return key
-    return `sk-...${key.slice(-4)}`
   }
 
   // ── Export ───────────────────────────────────────────────────────────────────
@@ -199,16 +191,27 @@ export function ProfilePage() {
   // ── Reset ────────────────────────────────────────────────────────────────────
 
   async function handleReset() {
-    await db.workoutSessions.clear()
-    await db.coachMessages.clear()
-    await db.programs.clear()
-    await db.weeklyReviews.clear()
-    await db.supplementSchedules.clear()
-    clearMessages()
-    setSupplements([])
-    setActiveProgram(null)
-    setShowResetConfirm(false)
-    window.location.reload()
+    if (!confirm('Supprimer toutes les données ? Cette action est irréversible.')) return
+    try {
+      await Promise.all([
+        db.workoutSessions.clear(),
+        db.coachMessages.clear(),
+        db.programs.clear(),
+        db.weeklyReviews.clear(),
+        db.userProfile.clear(),
+        db.dailyWellness.clear(),
+        db.sleepLogs.clear(),
+        db.supplementSchedules.clear(),
+      ])
+      // Clear localStorage too
+      localStorage.clear()
+      // Clear Zustand coach store
+      useCoachStore.getState().clearMessages()
+      window.location.reload()
+    } catch (err) {
+      console.error('[Profile] reset error:', err)
+      alert('Erreur lors de la suppression. Réessaye.')
+    }
   }
 
   // ── Regenerate program ───────────────────────────────────────────────────────
@@ -217,9 +220,11 @@ export function ProfilePage() {
     if (!profile) return
     setRegenerating(true)
     try {
-      const { generateJSON, buildProgramPrompt } = await import('../api/claude')
+      const { generateJSON, buildProgramPrompt } = await import('../api/gemini')
       const sessions = await db.workoutSessions.orderBy('date').reverse().limit(10).toArray()
-      const prompt = buildProgramPrompt(profile, sessions)
+      // Retrieve interview context if available (saved during onboarding)
+      const interviewContext = localStorage.getItem('apex_interview_context') ?? undefined
+      const prompt = buildProgramPrompt(profile, sessions, interviewContext)
       const generated = await generateJSON<{
         name: string
         aiRationale: string
@@ -259,15 +264,15 @@ export function ProfilePage() {
 
         {/* ── Avatar + Name ───────────────────────────────────────────── */}
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-accent-blue/10 border border-accent-blue/20 flex items-center justify-center">
-            <span className="font-display text-xl text-accent-blue">{initials}</span>
+          <div className="w-16 h-16 rounded-full bg-accent-yellow/10 border border-accent-yellow/20 flex items-center justify-center">
+            <span className="font-display text-xl text-accent-yellow">{initials}</span>
           </div>
           <div>
             <p className="font-display text-lg text-[#f0ede6]">{profile.name}</p>
-            <p className="font-body text-xs text-[rgba(240,237,230,0.45)] mt-0.5">
+            <p className="font-body text-xs text-[rgba(240,237,230,0.72)] mt-0.5">
               {EXPERIENCE_LABELS[profile.experience]} · {GOAL_LABELS[profile.goal]}
             </p>
-            <p className="font-body text-xs text-[rgba(240,237,230,0.35)]">
+            <p className="font-body text-xs text-[rgba(240,237,230,0.6)]">
               {profile.daysPerWeek} j/semaine · {profile.age} ans
             </p>
           </div>
@@ -275,7 +280,7 @@ export function ProfilePage() {
 
         {/* ── Basic Info (editable) ────────────────────────────────────── */}
         <Card className="flex flex-col">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest mb-2">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest mb-2">
             Informations
           </p>
           <InlineEdit
@@ -306,12 +311,12 @@ export function ProfilePage() {
 
         {/* ── Supplements ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Suppléments
           </p>
           {supplements.length === 0 ? (
             <Card>
-              <p className="font-body text-sm text-[rgba(240,237,230,0.45)] text-center py-3">
+              <p className="font-body text-sm text-[rgba(240,237,230,0.72)] text-center py-3">
                 Aucun supplément configuré
               </p>
             </Card>
@@ -322,7 +327,7 @@ export function ProfilePage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-sm text-[#f0ede6] truncate">{sup.supplement}</p>
                     {sup.notes && (
-                      <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5 truncate">{sup.notes}</p>
+                      <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5 truncate">{sup.notes}</p>
                     )}
                   </div>
 
@@ -355,7 +360,7 @@ export function ProfilePage() {
 
         {/* ── Program ─────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Programme
           </p>
           <Card className="flex flex-col gap-3">
@@ -363,7 +368,7 @@ export function ProfilePage() {
               <>
                 <div>
                   <p className="font-body text-sm font-medium text-[#f0ede6]">{activeProgram.name}</p>
-                  <p className="font-body text-xs text-[rgba(240,237,230,0.45)] mt-0.5">
+                  <p className="font-body text-xs text-[rgba(240,237,230,0.72)] mt-0.5">
                     Semaine {activeProgram.weekNumber} · Généré le{' '}
                     {new Date(activeProgram.generatedAt).toLocaleDateString('fr-FR')}
                   </p>
@@ -399,54 +404,77 @@ export function ProfilePage() {
           </Card>
         </div>
 
-        {/* ── API Key ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
-            Clé API Claude
-          </p>
-          <Card className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type={apiKeyVisible ? 'text' : 'password'}
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                  className="w-full bg-bg-elevated border border-border-default rounded-lg px-3 pr-10 py-2.5 font-mono text-sm text-[#f0ede6] placeholder:text-[rgba(240,237,230,0.25)] outline-none focus:border-accent-blue/40 transition-colors"
-                />
-                <button
-                  onClick={() => setApiKeyVisible(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(240,237,230,0.3)]"
-                >
-                  {apiKeyVisible ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-              <Button
-                variant={apiKeySaved ? 'secondary' : 'primary'}
-                size="sm"
-                onClick={handleSaveApiKey}
-                className="flex-shrink-0"
-              >
-                {apiKeySaved ? <Check size={16} /> : 'Sauver'}
-              </Button>
-            </div>
-            {apiKey && !apiKeyVisible && (
-              <p className="font-mono text-xs text-[rgba(240,237,230,0.4)]">
-                {maskedKey(apiKey)}
-              </p>
+        {/* Weekly review */}
+        <div className="card flex flex-col gap-3">
+          <div>
+            <p className="font-body text-sm font-semibold text-[#f0ede6]">Revue hebdomadaire</p>
+            <p className="font-body text-xs text-[rgba(240,237,230,0.6)] mt-0.5">
+              APEX analyse ta semaine et ajuste tes recommandations
+            </p>
+          </div>
+          <button
+            onClick={handleGenerateWeeklyReview}
+            disabled={generatingReview}
+            className="btn-secondary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {generatingReview ? (
+              <>
+                <div className="w-4 h-4 border-2 border-accent-yellow/30 border-t-accent-yellow rounded-full animate-spin" />
+                Génération...
+              </>
+            ) : (
+              'Générer la revue →'
             )}
-            <div className="flex items-center gap-2 bg-bg-elevated rounded-lg px-3 py-2">
-              <span className="text-sm">🔒</span>
-              <p className="font-body text-xs text-[rgba(240,237,230,0.4)]">
-                Clé stockée localement uniquement · Jamais envoyée à nos serveurs
-              </p>
-            </div>
-          </Card>
+          </button>
         </div>
+
+        {/* ── Past weekly reviews ─────────────────────────────────────── */}
+        {weeklyReviews.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setShowReviews(v => !v)}
+              className="flex items-center justify-between"
+            >
+              <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
+                Revues passées ({weeklyReviews.length})
+              </p>
+              <span className="text-xs text-accent-yellow/70">{showReviews ? '▲' : '▼'}</span>
+            </button>
+            {showReviews && (
+              <div className="flex flex-col gap-2">
+                {weeklyReviews.map((review, i) => (
+                  <div key={i} className="card flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-body text-xs text-[rgba(240,237,230,0.7)]">
+                        Semaine du {new Date(review.weekStart).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </p>
+                      <span className="font-mono text-xs text-accent-yellow">{review.progressScore}/10</span>
+                    </div>
+                    <p className="font-body text-xs text-[rgba(240,237,230,0.5)]">
+                      {review.sessionsCount} séances · {Math.round(review.totalVolume / 1000)}t volume
+                    </p>
+                    {review.analysis && (
+                      <p className="font-body text-xs text-[rgba(240,237,230,0.7)] leading-relaxed line-clamp-3">
+                        {review.analysis.slice(0, 200)}{review.analysis.length > 200 ? '…' : ''}
+                      </p>
+                    )}
+                    {review.keyInsights.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        {review.keyInsights.slice(0, 2).map((insight, j) => (
+                          <p key={j} className="font-body text-xs text-accent-yellow/80">• {insight}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Data ────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Données
           </p>
           <div className="flex flex-col gap-2">

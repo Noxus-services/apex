@@ -14,7 +14,7 @@ export function RPESelector({ value, onChange }: RPESelectorProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs uppercase tracking-widest text-[rgba(240,237,230,0.4)]">RPE</span>
+      <span className="text-xs uppercase tracking-widest text-[rgba(240,237,230,0.7)]">RPE</span>
       <div className="flex gap-2">
         {[6, 7, 8, 9, 10].map(rpe => (
           <button
@@ -31,7 +31,7 @@ export function RPESelector({ value, onChange }: RPESelectorProps) {
         ))}
       </div>
       {value != null && (
-        <span className="text-xs text-[rgba(240,237,230,0.4)] text-center">
+        <span className="text-xs text-[rgba(240,237,230,0.7)] text-center">
           {rpeLabels[value] ?? ''}
         </span>
       )}

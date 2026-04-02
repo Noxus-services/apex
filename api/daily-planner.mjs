@@ -1,13 +1,12 @@
 /**
- * Scheduled Netlify Function — runs every day at 05:00 UTC
+ * Vercel Cron Function — runs every day at 05:00 UTC
  * 1. Reads all athlete snapshots (today or most recent)
  * 2. Calls Gemini 2.5-flash to generate a personalised daily plan
  * 3. Writes the plan to `daily_plans` table
  * 4. Sends a push notification to the user
  *
- * Schedule is declared in netlify.toml:
- *   [functions."daily-planner"]
- *     schedule = "0 5 * * *"
+ * Schedule is declared in vercel.json:
+ *   { "path": "/api/daily-planner", "schedule": "0 5 * * *" }
  */
 import { createClient } from '@supabase/supabase-js'
 
@@ -18,7 +17,9 @@ const supabase = createClient(
 
 const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
-const BASE_URL = process.env.URL || 'https://apex-coach.netlify.app'
+const BASE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : process.env.BASE_URL || 'https://apex-coach-ia.vercel.app'
 
 // ── Fetch today's snapshots ──────────────────────────────────────────────────
 async function getTodaySnapshots() {
@@ -153,7 +154,7 @@ async function sendPush(userId, title, body) {
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
-export default async () => {
+export default async function handler(req, res) {
   const today = new Date().toISOString().split('T')[0]
   console.log(`[daily-planner] Starting for ${today}`)
 
@@ -196,9 +197,5 @@ export default async () => {
     }
   }
 
-  return new Response(JSON.stringify({ processed: snapshots.length, date: today }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return res.status(200).json({ processed: snapshots.length, date: today })
 }
-
-export const config = { schedule: '0 5 * * *' }

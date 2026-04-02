@@ -22,29 +22,32 @@ export function SupplementReminder() {
         .filter(s => s.enabled)
         .toArray()
 
-      if (schedules.length === 0) return
-
       const now = new Date()
       const nowMinutes = now.getHours() * 60 + now.getMinutes()
-      const windowEnd = nowMinutes + 3 * 60 // next 3 hours
+      const windowEnd = nowMinutes + 4 * 60 // next 4 hours
 
-      // Find soonest supplement within the window
       const upcoming = schedules
         .map(s => {
           const mins = getMinutesFromMidnight(s.timeOfDay)
           return { schedule: s, mins }
         })
-        .filter(({ mins }) => mins >= nowMinutes && mins <= windowEnd)
+        .filter(({ mins }) => mins >= nowMinutes - 5 && mins <= windowEnd)
         .sort((a, b) => a.mins - b.mins)
 
-      if (upcoming.length === 0) return
+      if (upcoming.length === 0) {
+        setNext(null)
+        return
+      }
 
       const { schedule, mins } = upcoming[0]
       setNext(schedule)
-      setMinutesUntil(mins - nowMinutes)
+      setMinutesUntil(Math.max(0, mins - nowMinutes))
     }
 
     load()
+    // Refresh every minute so countdown stays accurate
+    const interval = setInterval(load, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   if (!next) return null
@@ -64,12 +67,12 @@ export function SupplementReminder() {
           {next.supplement}
         </p>
         {next.notes ? (
-          <p className="font-body text-xs text-[rgba(240,237,230,0.4)] truncate">{next.notes}</p>
+          <p className="font-body text-xs text-[rgba(240,237,230,0.7)] truncate">{next.notes}</p>
         ) : null}
       </div>
       <div className="text-right flex-shrink-0">
         <p className="font-mono text-accent-yellow text-sm font-medium">{timeLabel}</p>
-        <p className="font-body text-xs text-[rgba(240,237,230,0.4)]">{next.timeOfDay}</p>
+        <p className="font-body text-xs text-[rgba(240,237,230,0.7)]">{next.timeOfDay}</p>
       </div>
     </div>
   )

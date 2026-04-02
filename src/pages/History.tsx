@@ -61,7 +61,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           <span className="font-display text-base text-[#f0ede6] leading-none">
             {new Date(session.date).getDate()}
           </span>
-          <span className="font-body text-[9px] text-[rgba(240,237,230,0.4)] uppercase">
+          <span className="font-body text-[9px] text-[rgba(240,237,230,0.7)] uppercase">
             {new Date(session.date).toLocaleDateString('fr-FR', { month: 'short' })}
           </span>
         </div>
@@ -77,7 +77,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
               </div>
             )}
           </div>
-          <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">
+          <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">
             {formatDayName(session.date)}
           </p>
           <div className="flex items-center gap-3 mt-1.5">
@@ -86,18 +86,18 @@ function SessionCard({ session }: { session: WorkoutSession }) {
                 ? `${(session.totalVolume / 1000).toFixed(1)}t`
                 : `${Math.round(session.totalVolume)}kg`}
             </span>
-            <span className="text-[rgba(240,237,230,0.2)]">·</span>
+            <span className="text-[rgba(240,237,230,0.45)]">·</span>
             <span className="font-body text-xs text-[rgba(240,237,230,0.55)]">
               {formatDuration(session.duration)}
             </span>
-            <span className="text-[rgba(240,237,230,0.2)]">·</span>
+            <span className="text-[rgba(240,237,230,0.45)]">·</span>
             <span className="text-sm">{MOOD_EMOJI[session.mood] ?? '😐'}</span>
             <span className="text-sm">{ENERGY_EMOJI[session.energy] ?? '⚡'}</span>
           </div>
         </div>
 
         {/* Chevron */}
-        <div className="flex-shrink-0 text-[rgba(240,237,230,0.3)] mt-1">
+        <div className="flex-shrink-0 text-[rgba(240,237,230,0.55)] mt-1">
           {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </div>
       </button>
@@ -107,7 +107,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
         <div className="flex flex-col gap-4 border-t border-border-subtle pt-3">
           {/* Exercises list */}
           <div className="flex flex-col gap-2">
-            <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+            <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
               Exercices
             </p>
             {session.exercises.map((ex, i) => {
@@ -122,18 +122,18 @@ function SessionCard({ session }: { session: WorkoutSession }) {
                 <div key={i} className="bg-bg-elevated rounded-lg px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-body text-sm text-[#f0ede6] font-medium truncate">{ex.name}</p>
-                    <span className="font-body text-xs text-[rgba(240,237,230,0.4)] flex-shrink-0">
+                    <span className="font-body text-xs text-[rgba(240,237,230,0.7)] flex-shrink-0">
                       {workSets.length} séries · {Math.round(totalVol)}kg
                     </span>
                   </div>
                   {bestSet && (
-                    <p className="font-body text-xs text-[rgba(240,237,230,0.45)] mt-0.5">
+                    <p className="font-body text-xs text-[rgba(240,237,230,0.72)] mt-0.5">
                       Meilleure série : {bestSet.weight}kg × {bestSet.reps} reps
                       {bestSet.rpe ? ` @ RPE${bestSet.rpe}` : ''}
                     </p>
                   )}
                   {ex.notes && (
-                    <p className="font-body text-xs text-[rgba(240,237,230,0.35)] mt-0.5 italic">
+                    <p className="font-body text-xs text-[rgba(240,237,230,0.6)] mt-0.5 italic">
                       {ex.notes}
                     </p>
                   )}
@@ -145,7 +145,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           {/* PRs achieved */}
           {prs.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+              <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
                 Records battus
               </p>
               {prs.map((pr, i) => (
@@ -165,10 +165,10 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           {/* AI feedback */}
           {session.aiCoachFeedback && (
             <div className="flex flex-col gap-1.5">
-              <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+              <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
                 Feedback APEX
               </p>
-              <div className="bg-accent-blue/5 border border-accent-blue/15 rounded-lg px-3 py-2.5">
+              <div className="bg-accent-yellow/5 border border-accent-yellow/15 rounded-lg px-3 py-2.5">
                 <p className="font-body text-xs text-[rgba(240,237,230,0.7)] leading-relaxed">
                   {session.aiCoachFeedback}
                 </p>
@@ -179,7 +179,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           {/* Session notes */}
           {session.notes && (
             <div className="flex flex-col gap-1">
-              <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+              <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
                 Notes
               </p>
               <p className="font-body text-sm text-[rgba(240,237,230,0.6)] italic">{session.notes}</p>
@@ -217,7 +217,7 @@ function SummaryStats({ sessions }: { sessions: WorkoutSession[] }) {
       {stats.map(s => (
         <div key={s.label} className="card flex-1 flex flex-col items-center py-3 gap-0.5">
           <span className="font-display text-2xl text-[#f0ede6] leading-none">{s.value}</span>
-          <span className="font-body text-[10px] text-[rgba(240,237,230,0.4)] text-center">
+          <span className="font-body text-[10px] text-[rgba(240,237,230,0.7)] text-center">
             {s.label}
           </span>
         </div>
@@ -276,7 +276,7 @@ export function HistoryPage() {
           <h1 className="font-display text-[26px] text-[#f0ede6] leading-none tracking-wide">
             HISTORIQUE
           </h1>
-          <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-1">
+          <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-1">
             {sessions.length} séance{sessions.length !== 1 ? 's' : ''} enregistrée{sessions.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -315,7 +315,7 @@ export function HistoryPage() {
               <p className="font-body text-sm text-[rgba(240,237,230,0.6)]">
                 Aucune séance trouvée
               </p>
-              <p className="font-body text-xs text-[rgba(240,237,230,0.35)] mt-1">
+              <p className="font-body text-xs text-[rgba(240,237,230,0.6)] mt-1">
                 {filter === 'all'
                   ? 'Commence à t\'entraîner pour voir ton historique ici.'
                   : 'Aucune séance pour cette période.'}

@@ -56,23 +56,32 @@
 @layer components {
 
   /* ── Layout ──────────────────────────────────────────────── */
-  .page-scroll {
+
+  /* Primary scroll container — every scrollable page uses this as its root.
+     It is a direct flex child of #root, which is why flex:1 + min-height:0
+     is mandatory (min-height:0 prevents flex overflow on Safari/Chrome). */
+  .page-container {
     flex: 1;
+    min-height: 0;        /* critical: lets the flex child shrink below content size */
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Non-scrolling page (Workout active session) — full flex column, no scroll */
   .page-fixed {
     flex: 1;
+    min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
 
-  .page-container {
+  /* Legacy alias kept for any future use — same as page-container */
+  .page-scroll {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;

@@ -56,6 +56,40 @@ export function detectPRs(session: WorkoutSession, allHistory: WorkoutSession[])
         date: session.date,
       })
     }
+
+    // Reps PR: more reps at the same weight than ever before
+    for (const currentSet of workSets) {
+      const historicalSetsAtWeight = prevSessions.flatMap(s =>
+        s.exercises
+          .filter(e => e.exerciseId === exercise.exerciseId)
+          .flatMap(e =>
+            e.sets.filter(
+              set =>
+                set.completed &&
+                !set.isWarmup &&
+                set.weight === currentSet.weight
+            )
+          )
+      )
+      if (historicalSetsAtWeight.length === 0) continue
+      const bestHistoricalReps = Math.max(...historicalSetsAtWeight.map(s => s.reps))
+      if (currentSet.reps > bestHistoricalReps) {
+        // Avoid duplicate reps PRs for the same exercise in this session
+        const alreadyAdded = prs.some(
+          pr => pr.exerciseId === exercise.exerciseId && pr.type === 'reps'
+        )
+        if (!alreadyAdded) {
+          prs.push({
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.name,
+            type: 'reps',
+            value: currentSet.reps,
+            previousValue: bestHistoricalReps,
+            date: session.date,
+          })
+        }
+      }
+    }
   }
   return prs
 }
@@ -77,4 +111,32 @@ export function getWeekStart(date: Date): Date {
   d.setDate(diff)
   d.setHours(0, 0, 0, 0)
   return d
+}
+
+/**
+ * Compute current training streak in calendar days.
+ * Uses local date (not UTC) to avoid timezone boundary issues.
+ * Deduplicates multiple sessions on the same day.
+ */
+export function computeStreak(sessions: { date: Date | string }[]): number {
+  // Normalize to local date strings YYYY-MM-DD using toLocaleDateString('en-CA')
+  const sorted = [...sessions]
+    .map(s => new Date(s.date).toLocaleDateString('en-CA'))
+    .sort((a, b) => (a > b ? -1 : 1)) // most recent first
+
+  // Deduplicate
+  const uniqueDays = [...new Set(sorted)]
+
+  let streak = 0
+  for (let i = 0; i < uniqueDays.length; i++) {
+    const expected = new Date()
+    expected.setDate(expected.getDate() - i)
+    const expectedKey = expected.toLocaleDateString('en-CA')
+    if (uniqueDays[i] === expectedKey) {
+      streak++
+    } else {
+      break
+    }
+  }
+  return streak
 }

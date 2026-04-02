@@ -41,7 +41,7 @@ export const useCoachStore = create<CoachState>()(
       isChatOpen: false,
 
       addMessage: (message: CoachMessage) => {
-        set(state => ({ messages: [...state.messages, message] }))
+        set(state => ({ messages: [...state.messages, message].slice(-100) }))
       },
 
       setStreaming: (val: boolean) => {

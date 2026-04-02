@@ -21,7 +21,7 @@ export function RestTimer({ timer }: RestTimerProps) {
         >
           <div className="bg-bg-elevated border border-border-default rounded-xl shadow-2xl px-6 py-5 flex flex-col items-center gap-3 pointer-events-auto w-full max-w-sm">
             {/* Label */}
-            <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
+            <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.7)]">
               REPOS
             </span>
 

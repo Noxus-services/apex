@@ -30,7 +30,7 @@ export function useWorkout() {
 
     const loggedExercises = session.exercises.map(ex => ({
       exerciseId: ex.planned.exerciseId,
-      name: ex.planned.name,
+      name: ex.planned.name.trim(),
       sets: ex.sets
         .filter(s => s.status === 'completed')
         .map(
@@ -50,10 +50,19 @@ export function useWorkout() {
 
     const allHistory = await db.workoutSessions.toArray()
     const totalVolume = calculateSessionVolume(loggedExercises)
-    const prs = detectPRs(
-      { exercises: loggedExercises, date: new Date() } as any,
-      allHistory
-    )
+    const tempSession: import('../types').WorkoutSession = {
+      exercises: loggedExercises,
+      date: new Date(),
+      startedAt: session.sessionStartTime,
+      dayName: session.dayName ?? 'Séance',
+      totalVolume,
+      duration: 0,
+      mood: session.mood as any,
+      energy: session.energy as any,
+      notes: '',
+      prsAchieved: [],
+    }
+    const prs = detectPRs(tempSession, allHistory)
 
     if (prs.length > 0) vibration.pr()
 
@@ -61,7 +70,7 @@ export function useWorkout() {
       date: session.sessionStartTime,
       startedAt: session.sessionStartTime,
       completedAt: new Date(),
-      dayName: session.exercises[0]?.planned.name ?? 'Séance',
+      dayName: session.dayName ?? session.exercises[0]?.planned.name ?? 'Séance',
       exercises: loggedExercises,
       mood: mood as any,
       energy: energy as any,

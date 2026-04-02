@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -32,7 +33,15 @@ function buildLast7Days(sessions: WorkoutSession[]) {
         const sd = new Date(s.date)
         return sd >= d && sd < next
       })
-      .reduce((acc, s) => acc + (s.totalVolume ?? 0), 0)
+      .reduce((acc, s) => {
+        // Fallback: compute from exercises if totalVolume is missing
+        if (s.totalVolume && s.totalVolume > 0) return acc + s.totalVolume
+        const computed = s.exercises?.reduce((exAcc, ex) =>
+          exAcc + ex.sets.filter(set => set.completed && !set.isWarmup)
+            .reduce((setAcc, set) => setAcc + (set.weight * set.reps), 0)
+        , 0) ?? 0
+        return acc + computed
+      }, 0)
 
     result.push({
       day: getDayLabel(d),
@@ -55,7 +64,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
 }
 
 export function ProgressCharts({ sessions }: ProgressChartsProps) {
-  const data = buildLast7Days(sessions)
+  const data = useMemo(() => buildLast7Days(sessions), [sessions])
   const hasData = data.some(d => d.volume > 0)
 
   return (
@@ -64,7 +73,7 @@ export function ProgressCharts({ sessions }: ProgressChartsProps) {
         Volume — 7 derniers jours
       </h3>
       {!hasData ? (
-        <p className="text-center text-[rgba(240,237,230,0.3)] text-sm py-6 font-body">
+        <p className="text-center text-[rgba(240,237,230,0.55)] text-sm py-6 font-body">
           Aucune séance cette semaine
         </p>
       ) : (
@@ -72,7 +81,7 @@ export function ProgressCharts({ sessions }: ProgressChartsProps) {
           <BarChart data={data} barCategoryGap="30%">
             <XAxis
               dataKey="day"
-              tick={{ fill: 'rgba(240,237,230,0.4)', fontSize: 11, fontFamily: 'DM Sans' }}
+              tick={{ fill: 'rgba(240,237,230,0.7)', fontSize: 11, fontFamily: 'DM Sans' }}
               axisLine={false}
               tickLine={false}
             />

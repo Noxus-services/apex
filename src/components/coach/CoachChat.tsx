@@ -33,14 +33,14 @@ function MessageBubble({ message }: { message: CoachMessage }) {
         className={`px-4 py-3 max-w-[80%] ${
           isUser
             ? 'bg-bg-elevated rounded-xl rounded-tr-sm border border-border-default'
-            : 'bg-accent-blue/10 border border-accent-blue/20 rounded-xl rounded-tl-sm max-w-[85%]'
+            : 'bg-accent-yellow/10 border border-accent-yellow/20 rounded-xl rounded-tl-sm max-w-[85%]'
         }`}
       >
         <p className="font-body text-sm text-[#f0ede6] leading-relaxed whitespace-pre-wrap">
           {message.content}
         </p>
       </div>
-      <span className="font-body text-[10px] text-[rgba(240,237,230,0.3)] px-1">
+      <span className="font-body text-[10px] text-[rgba(240,237,230,0.55)] px-1">
         {formatTime(message.timestamp)}
       </span>
     </div>
@@ -50,13 +50,13 @@ function MessageBubble({ message }: { message: CoachMessage }) {
 function StreamingBubble({ content }: { content: string }) {
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="px-4 py-3 bg-accent-blue/10 border border-accent-blue/20 rounded-xl rounded-tl-sm max-w-[85%]">
+      <div className="px-4 py-3 bg-accent-yellow/10 border border-accent-yellow/20 rounded-xl rounded-tl-sm max-w-[85%]">
         <p className="font-body text-sm text-[#f0ede6] leading-relaxed whitespace-pre-wrap">
           {content}
-          <span className="inline-block w-[2px] h-4 bg-accent-blue ml-0.5 animate-pulse align-middle">▌</span>
+          <span className="inline-block w-[2px] h-4 bg-accent-yellow ml-0.5 animate-pulse align-middle">▌</span>
         </p>
       </div>
-      <span className="font-body text-[10px] text-[rgba(240,237,230,0.3)] px-1">
+      <span className="font-body text-[10px] text-[rgba(240,237,230,0.55)] px-1">
         Maintenant
       </span>
     </div>
@@ -67,11 +67,12 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
   const { sendMessage } = useCoach()
   const { messages, isStreaming, isSearching, streamingContent } = useCoachStore()
   const [inputText, setInputText] = useState('')
+  const [sendError, setSendError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Filter to chat-context messages only (or show all)
-  const chatMessages = messages
+  // Filter to chat-context messages only (exclude post_workout analysis, weekly_review, etc.)
+  const chatMessages = messages.filter(m => m.context === 'chat' || m.context === undefined)
 
   // Determine if we should show suggestions
   const lastMessage = chatMessages[chatMessages.length - 1]
@@ -94,8 +95,14 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
   async function handleSend(text?: string) {
     const msg = (text ?? inputText).trim()
     if (!msg || isStreaming) return
+    setSendError(null)
     setInputText('')
-    await sendMessage(msg, 'chat')
+    try {
+      await sendMessage(msg, 'chat')
+    } catch {
+      setInputText(msg)
+      setSendError('Erreur de connexion. Réessaye.')
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -118,13 +125,13 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
             <h2 className="font-display text-xl text-[#f0ede6] tracking-wide">
               APEX IA
             </h2>
-            <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">
+            <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">
               Coach musculation &amp; récupération d'élite
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-[rgba(240,237,230,0.4)] hover:text-[#f0ede6] transition-colors p-1 -mr-1 mt-0.5"
+            className="text-[rgba(240,237,230,0.7)] hover:text-[#f0ede6] transition-colors p-1 -mr-1 mt-0.5"
             aria-label="Fermer"
           >
             <X size={22} />
@@ -135,7 +142,7 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {chatMessages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center flex-1 gap-3 py-8">
-              <div className="w-16 h-16 rounded-full bg-accent-blue/10 border border-accent-blue/20 flex items-center justify-center text-3xl">
+              <div className="w-16 h-16 rounded-full bg-accent-yellow/10 border border-accent-yellow/20 flex items-center justify-center text-3xl">
                 🤖
               </div>
               <p className="font-body text-sm text-[rgba(240,237,230,0.5)] text-center max-w-xs leading-relaxed">
@@ -155,8 +162,8 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
                 className="w-2 h-2 rounded-full bg-accent-yellow"
                 style={{ animation: 'pulse 1s ease-in-out infinite' }}
               />
-              <span className="text-xs text-[rgba(240,237,230,0.45)] italic font-body">
-                MAX vérifie les dernières données...
+              <span className="text-xs text-[rgba(240,237,230,0.72)] italic font-body">
+                APEX vérifie les dernières données...
               </span>
             </div>
           )}
@@ -167,11 +174,11 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
 
           {isStreaming && !streamingContent && (
             <div className="flex items-start gap-2">
-              <div className="px-4 py-3 bg-accent-blue/10 border border-accent-blue/20 rounded-xl rounded-tl-sm">
+              <div className="px-4 py-3 bg-accent-yellow/10 border border-accent-yellow/20 rounded-xl rounded-tl-sm">
                 <div className="flex gap-1 items-center h-5">
-                  <span className="w-2 h-2 rounded-full bg-accent-blue/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-accent-blue/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-accent-blue/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-accent-yellow/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-accent-yellow/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-accent-yellow/60 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -180,7 +187,7 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
           {/* Quick suggestions */}
           {showSuggestions && (
             <div className="flex flex-col gap-2 mt-1">
-              <p className="font-body text-[10px] text-[rgba(240,237,230,0.3)] uppercase tracking-widest">
+              <p className="font-body text-[10px] text-[rgba(240,237,230,0.55)] uppercase tracking-widest">
                 Suggestions rapides
               </p>
               <div className="flex flex-wrap gap-2">
@@ -203,6 +210,17 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
 
         {/* ── Input Row ──────────────────────────────────────────────── */}
         <div className="flex-shrink-0 px-4 py-3 border-t border-border-subtle bg-bg-surface">
+          {sendError && (
+            <div className="flex items-center justify-between px-3 py-2 bg-accent-red/10 border border-accent-red/20 rounded-xl mb-2">
+              <span className="font-body text-xs text-accent-red">{sendError}</span>
+              <button
+                onClick={() => { setSendError(null); handleSend(inputText) }}
+                className="font-mono text-xs text-accent-red/70 underline ml-2"
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -212,7 +230,7 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
               placeholder="Parle à ton coach..."
               rows={1}
               disabled={isStreaming}
-              className="flex-1 bg-bg-elevated border border-border-default rounded-xl px-4 py-3 font-body text-sm text-[#f0ede6] placeholder:text-[rgba(240,237,230,0.3)] resize-none outline-none focus:border-accent-blue/50 transition-colors disabled:opacity-50"
+              className="flex-1 bg-bg-elevated border border-border-default rounded-xl px-4 py-3 font-body text-sm text-[#f0ede6] placeholder:text-[rgba(240,237,230,0.55)] resize-none outline-none focus:border-accent-yellow/50 transition-colors disabled:opacity-50"
               style={{ minHeight: '46px', maxHeight: '120px' }}
               onInput={e => {
                 const el = e.currentTarget
@@ -229,7 +247,7 @@ export function CoachChat({ isOpen, onClose }: CoachChatProps) {
               <Send size={18} className="text-bg-base" />
             </button>
           </div>
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.2)] text-center mt-2">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.45)] text-center mt-2">
             Entrée pour envoyer · Maj+Entrée pour sauter une ligne
           </p>
         </div>

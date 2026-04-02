@@ -223,7 +223,7 @@ export function RecoveryAdvisor() {
   if (loading) {
     return (
       <div className="card flex items-center justify-center py-6">
-        <p className="font-body text-xs text-[rgba(240,237,230,0.35)]">Calcul du score…</p>
+        <p className="font-body text-xs text-[rgba(240,237,230,0.6)]">Calcul du score…</p>
       </div>
     )
   }
@@ -298,7 +298,7 @@ export function RecoveryAdvisor() {
       <button
         onClick={handleAnalyzeWithAI}
         disabled={isStreaming || analysisRequested}
-        className="w-full h-10 rounded-xl border border-accent-blue/30 bg-accent-blue/5 font-body text-sm text-accent-blue font-medium active:scale-95 transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full h-10 rounded-xl border border-accent-yellow/30 bg-accent-yellow/5 font-body text-sm text-accent-yellow font-medium active:scale-95 transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isStreaming && analysisRequested
           ? 'Analyse en cours…'

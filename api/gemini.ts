@@ -1,12 +1,23 @@
+export const config = { runtime: 'edge' }
+
 /**
- * Netlify Edge Function — Gemini API proxy
- * Runs on Deno, no Lambda timeout.
+ * Vercel Edge Function — Gemini API proxy
  * Reads Gemini streaming response, returns full JSON when complete.
  */
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
-export default async (request: Request): Promise<Response> => {
+export default async function handler(request: Request): Promise<Response> {
+  // Always return JSON — wrap everything so Vercel never serves its own error page
+  try {
+    return await handleRequest(request)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return json({ error: `Edge function crashed: ${msg}` }, 500)
+  }
+}
+
+async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response('', { status: 204, headers: cors() })
   }
@@ -14,8 +25,9 @@ export default async (request: Request): Promise<Response> => {
     return json({ error: 'Method not allowed' }, 405)
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY')
-  if (!apiKey) return json({ error: 'GEMINI_API_KEY not configured' }, 500)
+  // Try both env var names — VITE_ prefix works in Vercel dashboard
+  const apiKey = process.env.GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY
+  if (!apiKey) return json({ error: 'GEMINI_API_KEY not configured (check Vercel env vars)' }, 500)
 
   let body: {
     model?: string
@@ -99,7 +111,6 @@ export default async (request: Request): Promise<Response> => {
 
     // Process complete SSE events (separated by \r\n\r\n or \n\n)
     let sepIdx: number
-    // deno-lint-ignore no-constant-condition
     while (true) {
       // Try both separators
       const crlfIdx = buf.indexOf('\r\n\r\n')
@@ -148,8 +159,6 @@ export default async (request: Request): Promise<Response> => {
     }
   }
 }
-
-export const config = { path: '/api/gemini' }
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

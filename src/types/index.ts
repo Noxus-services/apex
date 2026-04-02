@@ -24,7 +24,7 @@ export interface PlannedExercise {
   repsMax: number
   restSeconds: number
   rpe: number
-  technique: string
+  technique?: string   // optional — omis dans la génération compacte
   notes: string
 }
 
@@ -116,6 +116,7 @@ export interface ActiveExercise {
 
 export interface ActiveSessionState {
   sessionId: string
+  dayName?: string
   currentExerciseIndex: number
   currentSetIndex: number
   exercises: ActiveExercise[]
@@ -165,6 +166,9 @@ export interface SupplementSchedule {
   timeOfDay: string // "08:00"
   notes: string
   enabled: boolean
+  dose?: string           // e.g. "5g", "2 capsules", "1 scoop"
+  category?: 'performance' | 'recovery' | 'health' | 'sleep'
+  timingAnchor?: 'morning' | 'pre' | 'during' | 'post' | 'evening' | 'custom'
 }
 
 export interface SleepLog {

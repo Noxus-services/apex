@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useWorkoutStore } from '../../store/workoutStore'
 import { useWorkout } from '../../hooks/useWorkout'
-import { NumberInput } from '../ui/NumberInput'
-import { RPESelector } from '../ui/RPESelector'
+import { MusclesDiagram } from '../ui/MusclesDiagram'
 import { RestTimer } from './RestTimer'
-import type { ActiveSet } from '../../types'
+import { db } from '../../db/database'
+import type { Exercise } from '../../types'
+
+interface LastPerf {
+  weight: number
+  reps: number
+  suggestedWeight: number
+  isProgression: boolean // true = we're suggesting more than last time
+}
 
 interface ActiveSessionProps {
   onFinish: (mood: number, energy: number, notes: string) => void
@@ -22,165 +29,91 @@ function formatElapsed(ms: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-function ExerciseGif({ gifUrl, name }: { gifUrl: string; name: string }) {
-  const [failed, setFailed] = useState(false)
+// ─── Big Stepper — full width card ───────────────────────────────────────────
 
-  if (failed) {
-    return (
-      <div className="w-16 h-16 rounded-full bg-bg-elevated border border-border-default flex items-center justify-center text-2xl shrink-0">
-        💪
-      </div>
-    )
+function WeightStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  function adjust(delta: number) {
+    const next = Math.max(0, Math.round((value + delta) * 100) / 100)
+    onChange(next)
+    if ('vibrate' in navigator) navigator.vibrate(8)
   }
 
   return (
-    <img
-      src={gifUrl}
-      alt={name}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className="w-16 h-16 rounded-full object-cover border border-border-default shrink-0"
-    />
-  )
-}
-
-// Compact inline set row for completed / pending sets
-function SetRow({
-  set,
-  setNumber,
-  isActive,
-  exerciseIndex,
-  setIndex,
-  onValidate,
-  onSkip,
-}: {
-  set: ActiveSet
-  setNumber: number
-  isActive: boolean
-  exerciseIndex: number
-  setIndex: number
-  onValidate: (exIdx: number, sIdx: number, w: number, r: number, rpe: number | null) => void
-  onSkip: (exIdx: number, sIdx: number) => void
-}) {
-  const [weight, setWeight] = useState(set.targetWeight)
-  const [reps, setReps] = useState(set.targetReps)
-  const [rpe, setRpe] = useState<number | null>(set.rpe)
-
-  // Update local state when target changes (e.g. new exercise)
-  useEffect(() => {
-    setWeight(set.targetWeight)
-    setReps(set.targetReps)
-    setRpe(null)
-  }, [set.targetWeight, set.targetReps])
-
-  const isCompleted = set.status === 'completed'
-  const isSkipped = set.status === 'skipped'
-  const isWarmup = set.isWarmup
-
-  // Compact display row
-  if (isCompleted || isSkipped) {
-    const rowClass = isWarmup
-      ? 'opacity-40 text-[rgba(240,237,230,0.4)]'
-      : 'text-accent-green'
-    return (
-      <div className={`flex items-center gap-2 py-2 px-1 text-sm font-mono ${rowClass}`}>
-        <span className="w-6 text-center shrink-0">
-          {isWarmup ? (
-            <span className="text-[10px] text-accent-orange font-semibold">W{setNumber}</span>
-          ) : (
-            <span>{setNumber}</span>
-          )}
-        </span>
-        <span className="flex-1 text-center">
-          {set.loggedWeight ?? set.targetWeight}
-          <span className="text-[10px] opacity-50 ml-0.5">kg</span>
-        </span>
-        <span className="flex-1 text-center">{set.loggedReps ?? set.targetReps}</span>
-        <span className="flex-1 text-center">{set.rpe ?? '—'}</span>
-        <span className="w-6 text-center">{isSkipped ? '–' : '✓'}</span>
+    <div className="flex flex-col gap-2">
+      <span className="section-label text-center">POIDS</span>
+      {/* Main row */}
+      <div className="flex items-center gap-2">
+        <button
+          onPointerDown={() => adjust(-1.25)}
+          className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-2xl font-light flex items-center justify-center active:scale-90 active:bg-white/10 transition-all select-none"
+        >
+          −
+        </button>
+        <div className="flex-1 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center relative">
+          <span className="font-display text-[40px] leading-none text-[#f0ede6]">{value % 1 === 0 ? value.toFixed(0) : value}</span>
+          <span className="font-mono text-xs text-[rgba(240,237,230,0.6)] absolute right-4 bottom-3">kg</span>
+        </div>
+        <button
+          onPointerDown={() => adjust(+1.25)}
+          className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-2xl font-light flex items-center justify-center active:scale-90 active:bg-white/10 transition-all select-none"
+        >
+          +
+        </button>
       </div>
-    )
-  }
-
-  if (!isActive) {
-    // Pending set
-    return (
-      <div className="flex items-center gap-2 py-2 px-1 text-sm font-mono text-[rgba(240,237,230,0.35)]">
-        <span className="w-6 text-center shrink-0">
-          {isWarmup ? (
-            <span className="text-[10px] text-accent-orange/50 font-semibold">W{setNumber}</span>
-          ) : (
-            <span>{setNumber}</span>
-          )}
-        </span>
-        <span className="flex-1 text-center">
-          {set.targetWeight}
-          <span className="text-[10px] opacity-50 ml-0.5">kg</span>
-        </span>
-        <span className="flex-1 text-center">{set.targetReps}</span>
-        <span className="flex-1 text-center">—</span>
-        <span className="w-6 text-center text-[rgba(240,237,230,0.15)]">○</span>
+      {/* Quick adjust row */}
+      <div className="flex gap-2">
+        {[-5, -2.5].map(d => (
+          <button key={d}
+            onPointerDown={() => adjust(d)}
+            className="flex-1 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] font-mono text-xs text-[rgba(240,237,230,0.72)] active:bg-white/8 active:scale-95 transition-all select-none">
+            {d}
+          </button>
+        ))}
+        <div className="w-px bg-white/10 mx-1" />
+        {[+2.5, +5].map(d => (
+          <button key={d}
+            onPointerDown={() => adjust(d)}
+            className="flex-1 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] font-mono text-xs text-[rgba(240,237,230,0.72)] active:bg-white/8 active:scale-95 transition-all select-none">
+            +{d}
+          </button>
+        ))}
       </div>
-    )
-  }
-
-  // ACTIVE SET — expanded inline input
-  return (
-    <div className="border-l-2 border-accent-yellow bg-bg-elevated rounded-r-lg py-4 px-3 mb-2 flex flex-col gap-4">
-      {/* Label */}
-      <div className="flex items-center justify-between">
-        <span className="font-display text-lg text-accent-yellow tracking-wide">
-          {isWarmup ? `ÉCHAUFFEMENT W${setNumber}` : `SÉRIE ${setNumber - 3}`}
-        </span>
-        <span className="text-xs font-mono text-[rgba(240,237,230,0.35)]">
-          Cible: {set.targetWeight}kg × {set.targetReps}
-        </span>
-      </div>
-
-      {/* Inputs row */}
-      <div className="flex gap-3 justify-center">
-        <NumberInput
-          label="POIDS"
-          value={weight}
-          onChange={setWeight}
-          step={1.25}
-          min={0}
-          max={500}
-          unit="kg"
-        />
-        <NumberInput
-          label="REPS"
-          value={reps}
-          onChange={setReps}
-          step={1}
-          min={0}
-          max={100}
-        />
-      </div>
-
-      {/* RPE */}
-      <RPESelector value={rpe} onChange={setRpe} />
-
-      {/* Validate button */}
-      <button
-        onClick={() => onValidate(exerciseIndex, setIndex, weight, reps, rpe)}
-        className="btn-primary w-full h-16 font-display text-xl tracking-wide"
-      >
-        ✓ VALIDER SÉRIE {isWarmup ? `W${setNumber}` : setNumber - 3}
-      </button>
-
-      {/* Skip */}
-      <button
-        onClick={() => onSkip(exerciseIndex, setIndex)}
-        className="text-center text-xs text-[rgba(240,237,230,0.35)] py-1 active:opacity-60 transition-opacity"
-      >
-        Passer
-      </button>
     </div>
   )
 }
 
-// ─── Finish modal overlay ─────────────────────────────────────────────────────
+function RepsStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  function adjust(delta: number) {
+    const next = Math.max(1, value + delta)
+    onChange(next)
+    if ('vibrate' in navigator) navigator.vibrate(8)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="section-label text-center">REPS</span>
+      <div className="flex items-center gap-2">
+        <button
+          onPointerDown={() => adjust(-1)}
+          className="w-16 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-2xl font-light flex items-center justify-center active:scale-90 active:bg-white/10 transition-all select-none"
+        >
+          −
+        </button>
+        <div className="flex-1 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+          <span className="font-display text-[36px] leading-none text-[#f0ede6]">{value}</span>
+        </div>
+        <button
+          onPointerDown={() => adjust(+1)}
+          className="w-16 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-2xl font-light flex items-center justify-center active:scale-90 active:bg-white/10 transition-all select-none"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Finish Modal ─────────────────────────────────────────────────────────────
 
 function FinishModal({
   onConfirm,
@@ -191,95 +124,131 @@ function FinishModal({
 }) {
   const [mood, setMood] = useState(3)
   const [energy, setEnergy] = useState(3)
-  const [notes, setNotes] = useState('')
 
-  const MOOD_EMOJI = ['😴', '😕', '😐', '😊', '🔥']
-  const ENERGY_EMOJI = ['🪫', '😮‍💨', '⚡', '💪', '🚀']
+  const MOOD =   ['😴', '😕', '😐', '😊', '🔥']
+  const ENERGY = ['🪫', '😮‍💨', '⚡', '💪', '🚀']
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end">
-      <div className="w-full bg-bg-surface border-t border-border-default rounded-t-xl p-5 flex flex-col gap-5 pb-10">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end animate-slide-up">
+      <div
+        className="w-full bg-bg-surface border-t border-border-subtle rounded-t-3xl p-5 flex flex-col gap-5"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
+      >
         <h2 className="font-display text-3xl text-[#f0ede6]">TERMINER LA SÉANCE</h2>
 
-        {/* Mood */}
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
-            HUMEUR
-          </span>
+          <span className="section-label">HUMEUR</span>
           <div className="flex gap-2">
-            {MOOD_EMOJI.map((emoji, i) => (
-              <button
-                key={i}
-                onClick={() => setMood(i + 1)}
-                className={`flex-1 h-12 rounded-md text-xl transition-all ${
-                  mood === i + 1
-                    ? 'bg-accent-yellow/20 border border-accent-yellow scale-105'
-                    : 'bg-bg-elevated border border-border-default'
-                }`}
-              >
-                {emoji}
+            {MOOD.map((e, i) => (
+              <button key={i} onClick={() => setMood(i + 1)}
+                className={`flex-1 h-14 rounded-xl text-2xl active:scale-95 transition-all ${mood === i + 1 ? 'bg-accent-yellow/20 border border-accent-yellow' : 'bg-white/5 border border-white/10'}`}>
+                {e}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Energy */}
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
-            ÉNERGIE
-          </span>
+          <span className="section-label">ÉNERGIE</span>
           <div className="flex gap-2">
-            {ENERGY_EMOJI.map((emoji, i) => (
-              <button
-                key={i}
-                onClick={() => setEnergy(i + 1)}
-                className={`flex-1 h-12 rounded-md text-xl transition-all ${
-                  energy === i + 1
-                    ? 'bg-accent-yellow/20 border border-accent-yellow scale-105'
-                    : 'bg-bg-elevated border border-border-default'
-                }`}
-              >
-                {emoji}
+            {ENERGY.map((e, i) => (
+              <button key={i} onClick={() => setEnergy(i + 1)}
+                className={`flex-1 h-14 rounded-xl text-2xl active:scale-95 transition-all ${energy === i + 1 ? 'bg-accent-yellow/20 border border-accent-yellow' : 'bg-white/5 border border-white/10'}`}>
+                {e}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Notes */}
-        <textarea
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          rows={2}
-          placeholder="Notes sur la séance..."
-          className="w-full bg-bg-elevated border border-border-default rounded-md px-4 py-3 text-sm text-[#f0ede6] placeholder-[rgba(240,237,230,0.25)] focus:outline-none focus:border-accent-yellow resize-none"
-        />
-
-        <button onClick={() => onConfirm(mood, energy, notes)} className="btn-primary w-full">
-          ENREGISTRER LA SÉANCE
+        <button onClick={() => onConfirm(mood, energy, '')} className="btn-primary w-full font-display text-xl tracking-wide">
+          ENREGISTRER
         </button>
-        <button
-          onClick={onCancel}
-          className="text-center text-sm text-[rgba(240,237,230,0.4)] py-1"
-        >
-          Retour
+        <button onClick={onCancel} className="text-center text-sm text-[rgba(240,237,230,0.7)] py-1">Retour</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Muscle panel (slide-up sheet) ────────────────────────────────────────────
+
+function MusclePanel({ exercise, onClose }: { exercise: Exercise; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 flex items-end" onClick={onClose}>
+      <div
+        className="w-full bg-bg-surface border-t border-border-subtle rounded-t-3xl px-6 py-6 flex flex-col items-center gap-4 animate-slide-up"
+        onClick={e => e.stopPropagation()}
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
+      >
+        <div className="w-10 h-1 rounded-full bg-white/20 mb-1" />
+        <p className="font-display text-xl text-[#f0ede6] text-center">{exercise.nameFr || exercise.name}</p>
+        <p className="font-mono text-xs text-[rgba(240,237,230,0.7)] uppercase tracking-widest -mt-2">
+          {exercise.bodyPart} · {exercise.equipment}
+        </p>
+        <MusclesDiagram
+          primaryMuscles={[exercise.target]}
+          secondaryMuscles={exercise.secondaryMuscles}
+          size={180}
+        />
+        {exercise.instructions?.length > 0 && (
+          <div className="w-full flex flex-col gap-2 mt-2">
+            <p className="section-label">TECHNIQUE</p>
+            {exercise.instructions.slice(0, 3).map((inst, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="font-mono text-xs text-accent-yellow mt-0.5 flex-shrink-0">{i + 1}</span>
+                <p className="font-body text-sm text-[rgba(240,237,230,0.7)] leading-relaxed">{inst}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} className="w-full h-12 rounded-xl bg-white/5 border border-white/10 font-body text-sm text-[rgba(240,237,230,0.5)] mt-2">
+          Fermer
         </button>
       </div>
     </div>
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Compact muscle indicator ─────────────────────────────────────────────────
+
+function MuscleBadge({ target, secondary, onClick }: {
+  target: string
+  secondary: string[]
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+    >
+      <MusclesDiagram
+        primaryMuscles={[target]}
+        secondaryMuscles={secondary}
+        size={72}
+      />
+      <span className="font-mono text-[9px] text-[rgba(240,237,230,0.55)] uppercase tracking-wide max-w-[72px] text-center truncate">
+        {target}
+      </span>
+    </button>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function ActiveSession({ onFinish, onCancel }: ActiveSessionProps) {
-  const { session } = useWorkoutStore()
+  const { session, togglePause } = useWorkoutStore()
   const { validateSet, timer } = useWorkout()
   const store = useWorkoutStore()
+  const { undoLastSet } = useWorkoutStore()
 
   const [elapsed, setElapsed] = useState(0)
   const [showFinish, setShowFinish] = useState(false)
-  const [tipOpenMap, setTipOpenMap] = useState<Record<number, boolean>>({})
-  const [notesOpenMap, setNotesOpenMap] = useState<Record<number, boolean>>({})
-  const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [weight, setWeight] = useState(0)
+  const [reps, setReps] = useState(0)
+  const [exerciseData, setExerciseData] = useState<Exercise | null>(null)
+  const [showMuscles, setShowMuscles] = useState(false)
+  const [lastPerf, setLastPerf] = useState<LastPerf | null>(null)
+  const [lastValidated, setLastValidated] = useState(false)
+  const [justValidated, setJustValidated] = useState<string | null>(null) // 'exIdx-setIdx'
 
   // Elapsed clock
   useEffect(() => {
@@ -289,259 +258,303 @@ export function ActiveSession({ onFinish, onCancel }: ActiveSessionProps) {
     return () => clearInterval(id)
   }, [session])
 
-  // Auto-scroll to current exercise when it changes
+  // Reps: always sync from program target
   useEffect(() => {
     if (!session) return
-    const ref = exerciseRefs.current[session.currentExerciseIndex]
-    if (ref) {
-      ref.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    const ex = session.exercises[session.currentExerciseIndex]
+    if (!ex) return
+    const set = ex.sets[session.currentSetIndex]
+    if (!set) return
+    setReps(set.targetReps)
+  }, [session?.currentExerciseIndex, session?.currentSetIndex])
+
+  // Weight + progression: load last performance from DB when exercise changes
+  useEffect(() => {
+    if (!session) return
+    const ex = session.exercises[session.currentExerciseIndex]
+    if (!ex) return
+    const currentSet = ex.sets[session.currentSetIndex]
+
+    setLastPerf(null)
+
+    db.workoutSessions
+      .orderBy('date')
+      .reverse()
+      .limit(30)
+      .toArray()
+      .then(allSessions => {
+        for (const s of allSessions) {
+          const found = s.exercises.find(e =>
+            e.name.toLowerCase() === ex.planned.name.toLowerCase()
+          )
+          if (found) {
+            const workSets = found.sets.filter(ws => !ws.isWarmup && ws.completed)
+            if (workSets.length > 0) {
+              const lastSet = workSets[workSets.length - 1]
+              const hitTop = lastSet.reps >= ex.planned.repsMax
+              const suggested = hitTop
+                ? Math.round((lastSet.weight + 2.5) * 100) / 100
+                : lastSet.weight
+              setLastPerf({
+                weight: lastSet.weight,
+                reps: lastSet.reps,
+                suggestedWeight: suggested,
+                isProgression: hitTop,
+              })
+              // Pre-fill weight with suggestion for work sets
+              if (currentSet && !currentSet.isWarmup) {
+                setWeight(suggested)
+              } else if (currentSet) {
+                setWeight(currentSet.targetWeight)
+              }
+              return
+            }
+          }
+        }
+        // No history — use program target
+        if (currentSet) setWeight(currentSet.targetWeight)
+      })
+  }, [session?.currentExerciseIndex])
+
+  // Load exercise data for muscle diagram
+  useEffect(() => {
+    if (!session) return
+    const ex = session.exercises[session.currentExerciseIndex]
+    if (!ex?.planned.exerciseId) { setExerciseData(null); return }
+    db.exercises.get(ex.planned.exerciseId).then(data => setExerciseData(data ?? null))
   }, [session?.currentExerciseIndex])
 
   if (!session) return null
 
   const { exercises, currentExerciseIndex, currentSetIndex } = session
+  const currentEx = exercises[currentExerciseIndex]
+  if (!currentEx) return null
+
+  const planned = currentEx.planned
+  const currentSet = currentEx.sets[currentSetIndex]
 
   const totalExercises = exercises.length
   const completedExercises = exercises.filter(ex =>
     ex.sets.every(s => s.status === 'completed' || s.status === 'skipped')
   ).length
-
-  const completedWorkSets = exercises.reduce(
-    (acc, ex) => acc + ex.sets.filter(s => !s.isWarmup && s.status === 'completed').length,
-    0
-  )
-
-  const progressFraction = totalExercises > 0 ? completedExercises / totalExercises : 0
   const allDone = completedExercises === totalExercises
+  const progressFraction = totalExercises > 0 ? completedExercises / totalExercises : 0
 
-  async function handleValidate(
-    exIdx: number,
-    sIdx: number,
-    w: number,
-    r: number,
-    rpe: number | null
-  ) {
-    await validateSet(exIdx, sIdx, w, r, rpe)
+  const isWarmup = currentSet?.isWarmup ?? false
+  const warmupCount = currentEx.sets.filter(s => s.isWarmup).length
+  const currentWorkSetNum = isWarmup ? 0 : currentSetIndex - warmupCount + 1
+  const totalWorkSets = currentEx.sets.filter(s => !s.isWarmup).length
+  const nextEx = exercises[currentExerciseIndex + 1]
+
+  async function handleValidate() {
+    await validateSet(currentExerciseIndex, currentSetIndex, weight, reps, null)
+    setLastValidated(true)
+    setTimeout(() => setLastValidated(false), 8000) // undo window: 8 seconds
+    const key = `${currentExerciseIndex}-${currentSetIndex}`
+    setJustValidated(key)
+    setTimeout(() => setJustValidated(null), 600)
   }
 
-  function handleSkip(exIdx: number, sIdx: number) {
-    store.skipSet(exIdx, sIdx)
-  }
-
-  function toggleTip(idx: number) {
-    setTipOpenMap(prev => ({ ...prev, [idx]: !prev[idx] }))
-  }
-
-  function toggleNotes(idx: number) {
-    setNotesOpenMap(prev => ({ ...prev, [idx]: !prev[idx] }))
-  }
-
-  function isSetActive(exIdx: number, sIdx: number): boolean {
-    return (
-      exIdx === currentExerciseIndex &&
-      sIdx === currentSetIndex &&
-      exercises[exIdx].sets[sIdx]?.status === 'pending'
-    )
+  function handleSkip() {
+    store.skipSet(currentExerciseIndex, currentSetIndex)
   }
 
   return (
     <div className="flex flex-col h-full bg-bg-base">
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 bg-bg-surface border-b border-border-subtle">
-        {/* Row 1: Day name + timer */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <span className="font-display text-[18px] text-[#f0ede6] tracking-wide">
-            {exercises[0]?.planned.name
-              ? exercises.length > 1
-                ? `SÉANCE · ${totalExercises} exercices`
-                : exercises[0].planned.name.toUpperCase()
-              : 'SÉANCE EN COURS'}
+
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <div
+        className="flex-shrink-0 px-4 pb-3 border-b border-border-subtle"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 14px)' }}
+      >
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="font-body text-sm text-[rgba(240,237,230,0.72)]">
+            Exercice {currentExerciseIndex + 1} / {totalExercises}
           </span>
-          <span className="font-mono text-accent-yellow text-base">
-            {formatElapsed(elapsed)}
-          </span>
-        </div>
-
-        {/* Row 2: Progress */}
-        <div className="px-4 pb-3">
-          <div className="h-1.5 bg-bg-overlay rounded-full overflow-hidden mb-1.5">
-            <div
-              className="h-full bg-accent-yellow rounded-full transition-all duration-500"
-              style={{ width: `${progressFraction * 100}%` }}
-            />
-          </div>
-          <span className="text-xs font-mono text-[rgba(240,237,230,0.4)]">
-            {completedExercises}/{totalExercises} exercices · {completedWorkSets} séries complétées
-          </span>
-        </div>
-      </div>
-
-      {/* ── Scrollable content ──────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pb-4 px-4 flex flex-col gap-6">
-
-        {/* ACTIVE EXERCISE SECTION */}
-        {exercises.map((ex, exIdx) => {
-          const isCurrentEx = exIdx === currentExerciseIndex
-          const isUpcoming = exIdx > currentExerciseIndex
-          const planned = ex.planned
-
-          // Upcoming exercises — muted preview
-          if (isUpcoming) {
-            const opacity = Math.max(0.25, 0.6 - (exIdx - currentExerciseIndex) * 0.15)
-            return (
-              <div
-                key={exIdx}
-                ref={el => { exerciseRefs.current[exIdx] = el }}
-                className="card flex items-center gap-3"
-                style={{ opacity }}
-              >
-                <div className="w-10 h-10 rounded-full bg-bg-overlay border border-border-subtle flex items-center justify-center text-sm font-mono text-[rgba(240,237,230,0.3)] shrink-0">
-                  {exIdx + 1}
-                </div>
-                <div>
-                  <p className="font-body text-sm text-[rgba(240,237,230,0.6)]">{planned.name}</p>
-                  <p className="text-xs font-mono text-[rgba(240,237,230,0.3)]">
-                    {planned.sets} séries · {planned.repsMin}–{planned.repsMax} reps
-                  </p>
-                </div>
-              </div>
-            )
-          }
-
-          // Past / current exercise — full card
-          return (
-            <div
-              key={exIdx}
-              ref={el => { exerciseRefs.current[exIdx] = el }}
-              className="flex flex-col gap-3"
-            >
-              {/* Exercise header */}
-              <div className="flex items-start gap-4">
-                <ExerciseGif gifUrl={planned.exerciseId ? `https://v2.exercisedb.io/image/${planned.exerciseId}` : ''} name={planned.name} />
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="font-display leading-none text-[#f0ede6] mb-1"
-                    style={{ fontSize: isCurrentEx ? 26 : 20 }}
-                  >
-                    {planned.name.toUpperCase()}
-                  </p>
-                  <p className="text-xs font-mono text-[rgba(240,237,230,0.4)] leading-relaxed">
-                    {planned.sets} séries · {planned.repsMin}–{planned.repsMax} reps · Repos {planned.restSeconds}s · RPE cible {planned.rpe}
-                  </p>
-                </div>
-              </div>
-
-              {/* AI Tip — collapsible */}
-              {planned.technique && (
-                <div className="ai-card">
-                  <button
-                    onClick={() => toggleTip(exIdx)}
-                    className="w-full flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>🤖</span>
-                      <span className="text-xs font-mono uppercase tracking-widest text-accent-blue">
-                        CONSEIL COACH
-                      </span>
-                    </div>
-                    <span className="text-[rgba(240,237,230,0.4)] text-lg leading-none">
-                      {tipOpenMap[exIdx] ? '−' : '+'}
-                    </span>
-                  </button>
-                  {tipOpenMap[exIdx] && (
-                    <p className="mt-3 text-sm text-[rgba(240,237,230,0.7)] leading-relaxed">
-                      {planned.technique}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Sets table */}
-              <div className="card-elevated flex flex-col gap-0">
-                {/* Table header */}
-                <div className="flex items-center gap-2 pb-2 border-b border-border-subtle mb-1">
-                  <span className="w-6 text-center text-[10px] font-mono uppercase text-[rgba(240,237,230,0.25)] shrink-0">S</span>
-                  <span className="flex-1 text-center text-[10px] font-mono uppercase text-[rgba(240,237,230,0.25)]">POIDS</span>
-                  <span className="flex-1 text-center text-[10px] font-mono uppercase text-[rgba(240,237,230,0.25)]">REPS</span>
-                  <span className="flex-1 text-center text-[10px] font-mono uppercase text-[rgba(240,237,230,0.25)]">RPE</span>
-                  <span className="w-6 text-center text-[10px] font-mono uppercase text-[rgba(240,237,230,0.25)]">✓</span>
-                </div>
-
-                {ex.sets.map((set, sIdx) => (
-                  <SetRow
-                    key={sIdx}
-                    set={set}
-                    setNumber={sIdx + 1}
-                    isActive={isSetActive(exIdx, sIdx)}
-                    exerciseIndex={exIdx}
-                    setIndex={sIdx}
-                    onValidate={handleValidate}
-                    onSkip={handleSkip}
-                  />
-                ))}
-              </div>
-
-              {/* Exercise notes — collapsible */}
-              <button
-                onClick={() => toggleNotes(exIdx)}
-                className="text-xs font-mono text-[rgba(240,237,230,0.35)] text-left flex items-center gap-1"
-              >
-                <span>{notesOpenMap[exIdx] ? '−' : '+'}</span>
-                <span>Notes sur l'exercice</span>
-              </button>
-              {notesOpenMap[exIdx] && (
-                <textarea
-                  rows={2}
-                  placeholder="Notes..."
-                  className="w-full bg-bg-elevated border border-border-default rounded-md px-4 py-3 text-sm text-[#f0ede6] placeholder-[rgba(240,237,230,0.25)] focus:outline-none focus:border-accent-yellow resize-none"
-                />
-              )}
-            </div>
-          )
-        })}
-
-        {/* All done CTA */}
-        {allDone && (
-          <div className="pt-2">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-accent-yellow font-semibold tabular-nums">
+              {formatElapsed(elapsed)}
+            </span>
             <button
-              onClick={() => setShowFinish(true)}
-              className="btn-primary w-full font-display text-xl tracking-wide"
+              onClick={togglePause}
+              className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-[rgba(240,237,230,0.6)] active:scale-90 transition-all"
+              aria-label={session.isPaused ? 'Reprendre' : 'Pause'}
             >
-              🏁 TERMINER LA SÉANCE
+              {session.isPaused ? '▶' : '⏸'}
             </button>
           </div>
-        )}
+        </div>
+        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-accent-yellow rounded-full transition-all duration-500"
+            style={{ width: `${progressFraction * 100}%` }}
+          />
+        </div>
       </div>
 
-      {/* ── Rest timer (floating card) ───────────────────────────────── */}
-      <RestTimer timer={timer} />
+      {/* ── Exercise info ─────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-4 pt-4 pb-3 flex items-start gap-3">
+        {/* Text side */}
+        <div className="flex-1 min-w-0">
+          <h1 className="font-display text-[30px] leading-none text-[#f0ede6] mb-1.5 truncate">
+            {planned.name.toUpperCase()}
+          </h1>
+          <p className="font-mono text-xs text-[rgba(240,237,230,0.7)] mb-2.5">
+            {isWarmup
+              ? `ÉCHAUFFEMENT · W${currentSetIndex + 1}`
+              : `SÉRIE ${currentWorkSetNum} / ${totalWorkSets}`}
+            {currentSet && (
+              <span className="text-[rgba(240,237,230,0.22)]">
+                {' '}· {currentSet.targetWeight}kg × {currentSet.targetReps}
+              </span>
+            )}
+          </p>
+          {/* Set dots */}
+          <div className="flex items-center gap-1.5">
+            {currentEx.sets.map((s, i) => {
+              const done = s.status === 'completed'
+              const active = i === currentSetIndex
+              const flashing = justValidated === `${currentExerciseIndex}-${i}`
+              return (
+                <div key={i}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    done ? 'bg-accent-yellow w-5'
+                    : active ? 'bg-accent-yellow/50 w-5'
+                    : 'bg-white/10 w-3'
+                  } ${flashing ? 'ring-2 ring-accent-green/60 bg-accent-green/10' : ''}`}
+                />
+              )
+            })}
+          </div>
+          {/* Progression indicator */}
+          {lastPerf && !isWarmup && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl bg-accent-yellow/[0.07] border border-accent-yellow/15">
+              <span className="font-mono text-xs text-[rgba(240,237,230,0.5)]">
+                Dernière fois {lastPerf.weight}kg×{lastPerf.reps}
+              </span>
+              <span className="text-[rgba(240,237,230,0.25)] text-xs">→</span>
+              <span className={`font-mono text-xs font-bold ${lastPerf.isProgression ? 'text-accent-yellow' : 'text-[rgba(240,237,230,0.72)]'}`}>
+                {lastPerf.isProgression && '↑ '}{lastPerf.suggestedWeight}kg
+              </span>
+              {lastPerf.isProgression && (
+                <span className="ml-auto font-mono text-[10px] text-accent-yellow/60 uppercase tracking-wide">PROGRESSION</span>
+              )}
+            </div>
+          )}
+          {exerciseData?.instructions && exerciseData.instructions.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              {exerciseData.instructions.slice(0, 2).map((tip, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span className="font-mono text-[9px] text-accent-yellow/60 mt-0.5 flex-shrink-0">{i + 1}.</span>
+                  <p className="font-body text-[10px] text-[rgba(240,237,230,0.5)] leading-relaxed">{tip}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* ── Bottom actions ───────────────────────────────────────────── */}
-      <div className="flex-shrink-0 bg-bg-base border-t border-border-subtle px-4 py-3 flex gap-3">
-        {!allDone && (
+        {/* Muscle diagram — tap to expand */}
+        {exerciseData ? (
+          <MuscleBadge
+            target={exerciseData.target}
+            secondary={exerciseData.secondaryMuscles}
+            onClick={() => setShowMuscles(true)}
+          />
+        ) : (
           <button
-            onClick={() => setShowFinish(true)}
-            className="flex-1 btn-secondary text-sm"
+            onClick={() => setShowMuscles(true)}
+            className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-2xl opacity-40"
           >
-            TERMINER
+            💪
           </button>
         )}
-        <button
-          onClick={onCancel}
-          className="btn-danger px-4 text-sm"
-        >
-          ANNULER
-        </button>
       </div>
 
-      {/* ── Finish modal ─────────────────────────────────────────────── */}
+      {/* ── Controls ─────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-center px-4 gap-3 overflow-hidden">
+        {currentSet && !allDone && (
+          <>
+            <WeightStepper value={weight} onChange={setWeight} />
+            <RepsStepper value={reps} onChange={setReps} />
+          </>
+        )}
+      </div>
+
+      {/* ── Bottom ───────────────────────────────────────────────────── */}
+      <div
+        className="flex-shrink-0 px-4 flex flex-col gap-2.5"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 20px)' }}
+      >
+        {/* Next preview */}
+        {nextEx && !allDone && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-border-subtle">
+            <span className="section-label text-[rgba(240,237,230,0.22)]">SUIVANT</span>
+            <span className="font-body text-xs text-[rgba(240,237,230,0.72)] flex-1 truncate">{nextEx.planned.name}</span>
+            <span className="font-mono text-xs text-[rgba(240,237,230,0.5)]">{nextEx.planned.sets}×{nextEx.planned.repsMin}</span>
+          </div>
+        )}
+
+        {allDone ? (
+          <button onClick={() => setShowFinish(true)} className="btn-primary w-full font-display text-2xl tracking-wide h-16">
+            🏁 TERMINER
+          </button>
+        ) : (
+          <>
+            <button onClick={handleValidate} className="btn-primary w-full font-display text-2xl tracking-wide h-16">
+              ✓ VALIDER
+            </button>
+            <div className="flex gap-2">
+              {lastValidated && (
+                <button
+                  onClick={() => { undoLastSet(); setLastValidated(false) }}
+                  className="px-3 h-11 rounded-xl bg-accent-yellow/[0.08] border border-accent-yellow/20 font-body text-xs text-accent-yellow active:scale-90 transition-all flex-shrink-0"
+                >
+                  ↩ Annuler
+                </button>
+              )}
+              <button onClick={handleSkip}
+                className="flex-1 h-11 rounded-xl bg-white/[0.04] border border-white/[0.07] font-body text-sm text-[rgba(240,237,230,0.7)] active:opacity-60 transition-opacity">
+                Passer
+              </button>
+              <button onClick={() => setShowFinish(true)}
+                className="flex-1 h-11 rounded-xl bg-white/[0.04] border border-white/[0.07] font-body text-sm text-[rgba(240,237,230,0.7)] active:opacity-60 transition-opacity">
+                Terminer
+              </button>
+              <button onClick={onCancel}
+                className="px-4 h-11 rounded-xl bg-accent-red/[0.08] border border-accent-red/20 font-body text-sm text-accent-red active:opacity-60 transition-opacity">
+                ✕
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Overlays ─────────────────────────────────────────────────── */}
+
+      {/* Pause overlay */}
+      {session.isPaused && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center gap-6">
+          <span className="text-6xl">⏸</span>
+          <h2 className="font-display text-3xl text-[#f0ede6]">PAUSE</h2>
+          <p className="font-body text-sm text-[rgba(240,237,230,0.6)]">Séance en pause — reprends quand tu es prêt</p>
+          <button
+            onClick={togglePause}
+            className="btn-primary px-10"
+          >
+            ▶ REPRENDRE
+          </button>
+        </div>
+      )}
+
+      <RestTimer timer={timer} />
+
+      {showMuscles && exerciseData && (
+        <MusclePanel exercise={exerciseData} onClose={() => setShowMuscles(false)} />
+      )}
+
       {showFinish && (
         <FinishModal
-          onConfirm={(mood, energy, notes) => {
-            setShowFinish(false)
-            onFinish(mood, energy, notes)
-          }}
+          onConfirm={(mood, energy, notes) => { setShowFinish(false); onFinish(mood, energy, notes) }}
           onCancel={() => setShowFinish(false)}
         />
       )}

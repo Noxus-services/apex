@@ -46,7 +46,7 @@ export function NumberInput({
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <span className="text-xs uppercase tracking-widest text-[rgba(240,237,230,0.4)] font-body">
+      <span className="text-xs uppercase tracking-widest text-[rgba(240,237,230,0.7)] font-body">
         {label}
       </span>
       <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export function NumberInput({
             className="w-28 h-16 text-center bg-bg-overlay border border-border-strong rounded-md font-display text-3xl text-[#f0ede6] focus:outline-none focus:border-accent-yellow"
           />
           {unit && (
-            <span className="absolute right-3 bottom-3 text-xs text-[rgba(240,237,230,0.35)] font-mono">
+            <span className="absolute right-3 bottom-3 text-xs text-[rgba(240,237,230,0.6)] font-mono">
               {unit}
             </span>
           )}

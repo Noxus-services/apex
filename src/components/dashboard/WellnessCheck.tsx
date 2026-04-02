@@ -19,13 +19,6 @@ function getTodayEnd(): Date {
 
 // ── Emoji Selectors ───────────────────────────────────────────────────────────
 
-const SLEEP_EMOJIS: { value: 1 | 2 | 3 | 4 | 5; emoji: string; label: string }[] = [
-  { value: 1, emoji: '😵', label: 'Très mauvais' },
-  { value: 2, emoji: '😴', label: 'Mauvais' },
-  { value: 3, emoji: '😐', label: 'Correct' },
-  { value: 4, emoji: '🙂', label: 'Bon' },
-  { value: 5, emoji: '😄', label: 'Excellent' },
-]
 
 const STRESS_EMOJIS: { value: 1 | 2 | 3 | 4 | 5; emoji: string; label: string }[] = [
   { value: 1, emoji: '😌', label: 'Zen' },
@@ -43,6 +36,14 @@ const SORENESS_EMOJIS: { value: 1 | 2 | 3 | 4 | 5; emoji: string; label: string 
   { value: 5, emoji: '🚫', label: 'Sévère' },
 ]
 
+const MOTIVATION_EMOJIS: { value: 1 | 2 | 3 | 4 | 5; emoji: string; label: string }[] = [
+  { value: 1, emoji: '😔', label: 'Aucune' },
+  { value: 2, emoji: '😐', label: 'Faible' },
+  { value: 3, emoji: '🙂', label: 'Normale' },
+  { value: 4, emoji: '😊', label: 'Bonne' },
+  { value: 5, emoji: '🔥', label: 'Maximale' },
+]
+
 interface EmojiPickerProps {
   options: { value: 1 | 2 | 3 | 4 | 5; emoji: string; label: string }[]
   value: 1 | 2 | 3 | 4 | 5
@@ -58,13 +59,13 @@ function EmojiPicker({ options, value, onChange }: EmojiPickerProps) {
           onClick={() => onChange(opt.value)}
           className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg transition-colors ${
             value === opt.value
-              ? 'bg-accent-blue/20 border border-accent-blue/30'
+              ? 'bg-accent-yellow/20 border border-accent-yellow/30'
               : 'bg-bg-elevated border border-border-subtle'
           }`}
           title={opt.label}
         >
           <span className="text-xl leading-none">{opt.emoji}</span>
-          <span className="font-body text-[8px] text-[rgba(240,237,230,0.35)] text-center leading-none">
+          <span className="font-body text-[8px] text-[rgba(240,237,230,0.6)] text-center leading-none">
             {opt.label}
           </span>
         </button>
@@ -113,7 +114,7 @@ function getAIRecommendation(wellness: DailyWellness): { show: boolean; message:
 // ── Summary Display ───────────────────────────────────────────────────────────
 
 function WellnessSummary({ wellness }: { wellness: DailyWellness }) {
-  const sleepEmoji = SLEEP_EMOJIS.find(e => e.value === wellness.motivation)?.emoji ?? '😐'
+  const motivationEmoji = MOTIVATION_EMOJIS.find(e => e.value === wellness.motivation)?.emoji ?? '😐'
   const stressEmoji = STRESS_EMOJIS.find(e => e.value === wellness.stressLevel)?.emoji ?? '😐'
   const sorenessEmoji = SORENESS_EMOJIS.find(e => e.value === wellness.soreness)?.emoji ?? '💪'
 
@@ -135,7 +136,7 @@ function WellnessSummary({ wellness }: { wellness: DailyWellness }) {
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          <span className="text-lg">{sleepEmoji}</span>
+          <span className="text-lg">{motivationEmoji}</span>
           <span className="font-body text-xs text-[rgba(240,237,230,0.5)]">
             Motivation {wellness.motivation}/5
           </span>
@@ -155,7 +156,7 @@ function WellnessSummary({ wellness }: { wellness: DailyWellness }) {
       </div>
 
       {rec.show && (
-        <div className="bg-accent-blue/5 border border-accent-blue/15 rounded-lg px-3 py-2">
+        <div className="bg-accent-yellow/5 border border-accent-yellow/15 rounded-lg px-3 py-2">
           <p className="font-body text-xs text-[rgba(240,237,230,0.75)] leading-relaxed">
             {rec.message}
           </p>
@@ -180,6 +181,8 @@ export function WellnessCheck({ onSaved }: WellnessCheckProps = {}) {
   const [stressLevel, setStressLevel] = useState<1 | 2 | 3 | 4 | 5>(3)
   const [soreness, setSoreness] = useState<1 | 2 | 3 | 4 | 5>(2)
   const [motivation, setMotivation] = useState<1 | 2 | 3 | 4 | 5>(3)
+  const [sleepHours, setSleepHours] = useState<number>(7)
+  const [sleepQuality, setSleepQuality] = useState<1 | 2 | 3 | 4 | 5>(3)
 
   const { sendMessage } = useCoach()
 
@@ -211,9 +214,19 @@ export function WellnessCheck({ onSaved }: WellnessCheckProps = {}) {
       await db.dailyWellness.add(entry)
       setTodayWellness(entry)
 
+      // Save sleep log
+      const todayStart = getTodayStart()
+      const todayEnd = getTodayEnd()
+      const existingSleep = await db.sleepLogs.where('date').between(todayStart, todayEnd, true, true).first()
+      if (existingSleep?.id) {
+        await db.sleepLogs.update(existingSleep.id, { hoursSlept: sleepHours, quality: sleepQuality as 1 | 2 | 3 | 4 | 5, notes: '' })
+      } else {
+        await db.sleepLogs.add({ date: new Date(), hoursSlept: sleepHours, quality: sleepQuality as 1 | 2 | 3 | 4 | 5, notes: '' })
+      }
+
       // Call parent onSaved callback (triggers daily coaching)
       if (onSaved) {
-        onSaved({ sleep: motivation, stress: stressLevel, soreness })
+        onSaved({ sleep: sleepQuality, stress: stressLevel, soreness })
       } else if (stressLevel >= 4 || soreness >= 4) {
         // Fallback: notify coach with a plain message if no callback
         const wellnessMsg = [
@@ -245,19 +258,19 @@ export function WellnessCheck({ onSaved }: WellnessCheckProps = {}) {
         <p className="font-body text-sm font-medium text-[#f0ede6]">
           Comment tu te sens aujourd'hui ?
         </p>
-        <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">
+        <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">
           Aide ton coach à adapter ta séance
         </p>
       </div>
 
-      {/* Motivation / Énergie (using sleep emojis scale) */}
+      {/* Motivation / Énergie */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <span className="text-base">🔋</span>
           <span className="font-body text-xs text-[rgba(240,237,230,0.6)]">Motivation / Énergie</span>
         </div>
         <EmojiPicker
-          options={SLEEP_EMOJIS}
+          options={MOTIVATION_EMOJIS}
           value={motivation}
           onChange={setMotivation}
         />
@@ -287,6 +300,43 @@ export function WellnessCheck({ onSaved }: WellnessCheckProps = {}) {
           value={soreness}
           onChange={setSoreness}
         />
+      </div>
+
+      {/* Sommeil */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🌙</span>
+          <span className="font-body text-xs text-[rgba(240,237,230,0.6)]">Sommeil cette nuit</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onPointerDown={() => setSleepHours(h => Math.max(4, h - 0.5))}
+            className="w-12 h-12 rounded-xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-xl flex items-center justify-center active:scale-90 transition-all"
+          >−</button>
+          <div className="flex-1 h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center gap-1">
+            <span className="font-display text-2xl text-[#f0ede6]">{sleepHours}</span>
+            <span className="font-mono text-xs text-[rgba(240,237,230,0.6)]">h</span>
+          </div>
+          <button
+            onPointerDown={() => setSleepHours(h => Math.min(12, h + 0.5))}
+            className="w-12 h-12 rounded-xl bg-white/[0.06] border border-white/[0.09] text-[#f0ede6] text-xl flex items-center justify-center active:scale-90 transition-all"
+          >+</button>
+        </div>
+        <div className="flex gap-2">
+          {(['😴', '😕', '😐', '😊', '✨'] as const).map((e, i) => (
+            <button
+              key={i}
+              onClick={() => setSleepQuality((i + 1) as 1 | 2 | 3 | 4 | 5)}
+              className={`flex-1 h-11 rounded-xl text-xl active:scale-95 transition-all ${
+                sleepQuality === i + 1
+                  ? 'bg-accent-yellow/20 border border-accent-yellow'
+                  : 'bg-white/5 border border-white/10'
+              }`}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Warning preview */}

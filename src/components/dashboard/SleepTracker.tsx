@@ -90,7 +90,7 @@ function SleepSummary({ log }: { log: SleepLog }) {
           <p className="font-display text-xl text-[#f0ede6] leading-none">
             {log.hoursSlept >= 9 ? '9h+' : `${log.hoursSlept}h`}
           </p>
-          <p className="font-body text-xs text-[rgba(240,237,230,0.45)] mt-0.5">
+          <p className="font-body text-xs text-[rgba(240,237,230,0.72)] mt-0.5">
             Qualité {qualityEmoji} {log.quality}/5
           </p>
         </div>
@@ -161,7 +161,7 @@ export function SleepTracker() {
         <p className="font-body text-sm font-medium text-[#f0ede6]">
           🌙 Comment as-tu dormi ?
         </p>
-        <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">
+        <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">
           Le sommeil est le pilier n°1 de ta récupération
         </p>
       </div>
@@ -176,7 +176,7 @@ export function SleepTracker() {
               onClick={() => setHoursSlept(opt.value)}
               className={`flex-1 py-2.5 rounded-xl font-body text-sm font-medium transition-colors ${
                 hoursSlept === opt.value
-                  ? 'bg-accent-blue/20 border border-accent-blue/40 text-accent-blue'
+                  ? 'bg-accent-yellow/20 border border-accent-yellow/40 text-accent-yellow'
                   : 'bg-bg-elevated border border-border-subtle text-[rgba(240,237,230,0.5)]'
               }`}
             >
@@ -196,13 +196,13 @@ export function SleepTracker() {
               onClick={() => setQuality(opt.value)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg transition-colors ${
                 quality === opt.value
-                  ? 'bg-accent-blue/20 border border-accent-blue/30'
+                  ? 'bg-accent-yellow/20 border border-accent-yellow/30'
                   : 'bg-bg-elevated border border-border-subtle'
               }`}
               title={opt.label}
             >
               <span className="text-xl leading-none">{opt.emoji}</span>
-              <span className="font-body text-[8px] text-[rgba(240,237,230,0.35)] text-center leading-none">
+              <span className="font-body text-[8px] text-[rgba(240,237,230,0.6)] text-center leading-none">
                 {opt.label}
               </span>
             </button>
@@ -224,7 +224,7 @@ export function SleepTracker() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full h-12 rounded-xl bg-accent-blue font-body font-medium text-white text-sm active:scale-95 transition-transform disabled:opacity-50"
+        className="w-full h-12 rounded-xl bg-accent-yellow font-body font-medium text-white text-sm active:scale-95 transition-transform disabled:opacity-50"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>

@@ -46,7 +46,7 @@ export function ProgressRing({ seconds, totalSeconds, size = 200 }: ProgressRing
         <span className="font-display text-5xl leading-none text-[#f0ede6]">
           {m}:{s.toString().padStart(2, '0')}
         </span>
-        <span className="text-xs text-[rgba(240,237,230,0.4)] uppercase tracking-widest mt-1">
+        <span className="text-xs text-[rgba(240,237,230,0.7)] uppercase tracking-widest mt-1">
           repos
         </span>
       </div>

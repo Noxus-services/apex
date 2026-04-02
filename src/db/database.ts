@@ -21,6 +21,7 @@ export class ApexDatabase extends Dexie {
   supplementSchedules!: Table<SupplementSchedule>
   sleepLogs!: Table<SleepLog>
   dailyWellness!: Table<DailyWellness>
+  dailyNutrition!: Table<{ id?: number; date: Date; proteinGrams: number; notes: string }>
 
   constructor() {
     super('ApexDB')
@@ -43,6 +44,36 @@ export class ApexDatabase extends Dexie {
       supplementSchedules: '++id, supplement',
       sleepLogs: '++id, date',
       dailyWellness: '++id, date',
+    })
+    this.version(3).stores({
+      userProfile: '++id',
+      programs: '++id, isActive, generatedAt',
+      workoutSessions: '++id, date, programDayRef',
+      exercises: 'id, bodyPart, target, equipment',
+      coachMessages: '++id, timestamp, context',
+      weeklyReviews: '++id, weekStart',
+      supplementSchedules: '++id, supplement, category',
+      sleepLogs: '++id, date',
+      dailyWellness: '++id, date',
+    })
+    this.version(4).stores({
+      userProfile: '++id',
+      programs: '++id, isActive, generatedAt',
+      workoutSessions: '++id, date, programDayRef',
+      exercises: 'id, bodyPart, target, equipment',
+      coachMessages: '++id, timestamp, context',
+      weeklyReviews: '++id, weekStart',
+      supplementSchedules: '++id, supplement, category',
+      sleepLogs: '++id, date',
+      dailyWellness: '++id, date',
+      dailyNutrition: '++id, date',
+    }).upgrade(async tx => {
+      // Backfill category for existing supplements
+      await tx.table('supplementSchedules').toCollection().modify(sup => {
+        if (!sup.category) {
+          sup.category = 'health'
+        }
+      })
     })
   }
 }

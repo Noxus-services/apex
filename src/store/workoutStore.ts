@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type {
   ActiveSessionState,
   ActiveExercise,
@@ -24,6 +25,8 @@ interface WorkoutState {
   clearSession: () => void
   updateMood: (mood: 1 | 2 | 3 | 4 | 5) => void
   updateEnergy: (energy: 1 | 2 | 3 | 4 | 5) => void
+  undoLastSet: () => void
+  togglePause: () => void
 }
 
 function buildWarmupSets(workWeight: number): ActiveSet[] {
@@ -59,7 +62,9 @@ function buildWorkSets(
   }))
 }
 
-export const useWorkoutStore = create<WorkoutState>()((set, get) => ({
+export const useWorkoutStore = create<WorkoutState>()(
+  persist(
+    (set, get) => ({
   session: null,
   isSessionActive: false,
 
@@ -77,6 +82,7 @@ export const useWorkoutStore = create<WorkoutState>()((set, get) => ({
 
     const session: ActiveSessionState = {
       sessionId: crypto.randomUUID(),
+      dayName: day.name,
       currentExerciseIndex: 0,
       currentSetIndex: 0,
       exercises,
@@ -189,4 +195,62 @@ export const useWorkoutStore = create<WorkoutState>()((set, get) => ({
     if (!session) return
     set({ session: { ...session, energy } })
   },
-}))
+
+  togglePause: () => {
+    const { session } = get()
+    if (!session) return
+    set({ session: { ...session, isPaused: !session.isPaused } })
+  },
+
+  undoLastSet: () => {
+    const { session } = get()
+    if (!session) return
+
+    // Walk backwards through all sets to find the last completed one
+    const exercises = [...session.exercises]
+    let found = false
+
+    for (let eIdx = session.currentExerciseIndex; eIdx >= 0 && !found; eIdx--) {
+      const ex = exercises[eIdx]
+      const startIdx = eIdx === session.currentExerciseIndex
+        ? session.currentSetIndex - 1
+        : ex.sets.length - 1
+      for (let sIdx = startIdx; sIdx >= 0 && !found; sIdx--) {
+        if (ex.sets[sIdx].status === 'completed') {
+          const newSets = ex.sets.map((s, i) =>
+            i === sIdx
+              ? { ...s, status: 'pending' as const, loggedWeight: null, loggedReps: null, rpe: null, timestamp: null }
+              : s
+          )
+          exercises[eIdx] = { ...ex, sets: newSets }
+          // Move pointer back
+          set({
+            session: {
+              ...session,
+              exercises,
+              currentExerciseIndex: eIdx,
+              currentSetIndex: sIdx,
+            },
+          })
+          found = true
+        }
+      }
+    }
+  },
+    }),
+    {
+      name: 'apex-workout-session',
+      // Only persist the active session, not UI state
+      partialize: (state) => ({
+        session: state.session,
+        isSessionActive: state.isSessionActive,
+      }),
+      // Revive Date objects after deserialization
+      onRehydrateStorage: () => (state) => {
+        if (state?.session?.sessionStartTime) {
+          state.session.sessionStartTime = new Date(state.session.sessionStartTime)
+        }
+      },
+    }
+  )
+)

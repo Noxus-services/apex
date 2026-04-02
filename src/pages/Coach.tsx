@@ -31,7 +31,7 @@ function ContextBadge({ context }: { context: CoachMessage['context'] }) {
     program_gen: 'Programme',
   }
   const colors: Record<CoachMessage['context'], string> = {
-    chat: 'text-accent-blue/70 bg-accent-blue/10',
+    chat: 'text-accent-yellow/70 bg-accent-yellow/10',
     post_workout: 'text-green-400/70 bg-green-400/10',
     weekly_review: 'text-accent-yellow/70 bg-accent-yellow/10',
     program_gen: 'text-violet-400/70 bg-violet-400/10',
@@ -92,11 +92,11 @@ export function CoachPage() {
             <h1 className="font-display text-[26px] text-[#f0ede6] leading-none tracking-wide">
               MON COACH IA
             </h1>
-            <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-1">
+            <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-1">
               APEX · Préparateur physique d'élite
             </p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-accent-blue/10 border border-accent-blue/20 flex items-center justify-center text-2xl">
+          <div className="w-12 h-12 rounded-full bg-accent-yellow/10 border border-accent-yellow/20 flex items-center justify-center text-2xl">
             🤖
           </div>
         </div>
@@ -115,7 +115,7 @@ export function CoachPage() {
         {/* ── Weekly Review ───────────────────────────────────────────── */}
         {weeklyReview && (
           <div className="flex flex-col gap-2">
-            <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+            <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
               Bilan de la semaine
             </p>
             <WeeklyReviewCard review={weeklyReview} />
@@ -124,7 +124,7 @@ export function CoachPage() {
 
         {/* ── Quick Action Cards ──────────────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Actions rapides
           </p>
           {QUICK_ACTION_CARDS.map(action => (
@@ -136,11 +136,11 @@ export function CoachPage() {
               <span className="text-2xl flex-shrink-0">{action.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-body text-sm font-medium text-[#f0ede6]">{action.title}</p>
-                <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-0.5">
+                <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-0.5">
                   {action.description}
                 </p>
               </div>
-              <ChevronRight size={18} className="text-[rgba(240,237,230,0.3)] flex-shrink-0" />
+              <ChevronRight size={18} className="text-[rgba(240,237,230,0.55)] flex-shrink-0" />
             </button>
           ))}
         </div>
@@ -148,7 +148,7 @@ export function CoachPage() {
         {/* ── Recent Messages ─────────────────────────────────────────── */}
         {recentMessages.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+            <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
               Échanges récents
             </p>
             {recentMessages.map((msg, idx) => (
@@ -163,7 +163,7 @@ export function CoachPage() {
                     </span>
                     <ContextBadge context={msg.context} />
                   </div>
-                  <span className="font-body text-[10px] text-[rgba(240,237,230,0.3)] flex-shrink-0">
+                  <span className="font-body text-[10px] text-[rgba(240,237,230,0.55)] flex-shrink-0">
                     {formatRelativeTime(msg.timestamp)}
                   </span>
                 </div>
@@ -173,7 +173,7 @@ export function CoachPage() {
                 {msg.content.length > 200 && (
                   <button
                     onClick={() => setIsChatOpen(true)}
-                    className="font-body text-xs text-accent-blue self-start mt-0.5"
+                    className="font-body text-xs text-accent-yellow self-start mt-0.5"
                   >
                     Voir plus →
                   </button>
@@ -191,7 +191,7 @@ export function CoachPage() {
               <p className="font-body text-sm text-[rgba(240,237,230,0.7)]">
                 Ton coach IA est prêt
               </p>
-              <p className="font-body text-xs text-[rgba(240,237,230,0.4)] mt-1">
+              <p className="font-body text-xs text-[rgba(240,237,230,0.7)] mt-1">
                 Commence une conversation pour obtenir des conseils personnalisés sur ton entraînement, ta récupération et ta nutrition.
               </p>
             </div>

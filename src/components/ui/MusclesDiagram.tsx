@@ -410,7 +410,7 @@ export function MusclesDiagram({ primaryMuscles, secondaryMuscles, size = 220 }:
                 className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ background: 'rgba(255,107,53,0.65)' }}
               />
-              <span className="text-xs text-[rgba(240,237,230,0.45)]">
+              <span className="text-xs text-[rgba(240,237,230,0.72)]">
                 {REGION_LABELS[region] ?? region}
               </span>
             </div>

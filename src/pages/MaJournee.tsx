@@ -3,7 +3,7 @@ import { Bell, BellOff, CheckCircle2, Circle, Plus, Zap, ChevronDown } from 'luc
 import { useDailyPlan } from '../hooks/useDailyPlan'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useUserStore } from '../store/userStore'
-import type { SupplementEntry } from '../lib/supabase'
+import type { SupplementEntry } from '../hooks/useDailyPlan'
 
 // ── Colour-coded score ring ───────────────────────────────────────────────────
 function ScoreRing({ score }: { score: number }) {
@@ -33,7 +33,7 @@ function ScoreRing({ score }: { score: number }) {
           {score}
         </text>
       </svg>
-      <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
+      <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.7)]">
         {score >= 80 ? 'PRÊT À L\'ATTAQUE' : score >= 60 ? 'JOURNÉE MODULÉE' : 'RÉCUP PRIORITAIRE'}
       </span>
     </div>
@@ -64,17 +64,17 @@ function SupplementCard({
         {isTaken ? (
           <CheckCircle2 size={18} className="text-accent-green" />
         ) : (
-          <Circle size={18} className="text-[rgba(240,237,230,0.3)]" />
+          <Circle size={18} className="text-[rgba(240,237,230,0.55)]" />
         )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className={`font-body text-sm font-medium ${isTaken ? 'line-through text-[rgba(240,237,230,0.4)]' : 'text-[#f0ede6]'}`}>
+          <span className={`font-body text-sm font-medium ${isTaken ? 'line-through text-[rgba(240,237,230,0.7)]' : 'text-[#f0ede6]'}`}>
             {entry.name} — {entry.dose}
           </span>
           <span className="font-mono text-xs text-accent-yellow flex-shrink-0">{entry.time}</span>
         </div>
-        <p className="text-xs text-[rgba(240,237,230,0.45)] mt-0.5 leading-relaxed">{entry.reason}</p>
+        <p className="text-xs text-[rgba(240,237,230,0.72)] mt-0.5 leading-relaxed">{entry.reason}</p>
       </div>
     </button>
   )
@@ -93,14 +93,14 @@ function ProteinBar({
   const [custom, setCustom] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const pct = Math.min(100, (consumed / target) * 100)
-  const color = pct >= 100 ? '#4ade80' : pct >= 70 ? '#e8ff47' : 'rgba(240,237,230,0.3)'
+  const color = pct >= 100 ? '#4ade80' : pct >= 70 ? '#e8ff47' : 'rgba(240,237,230,0.55)'
 
   return (
     <div className="card flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">PROTÉINES</span>
+        <span className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.7)]">PROTÉINES</span>
         <span className="font-display text-lg text-[#f0ede6] leading-none">
-          {consumed}<span className="text-xs text-[rgba(240,237,230,0.4)] ml-1">/ {target}g</span>
+          {consumed}<span className="text-xs text-[rgba(240,237,230,0.7)] ml-1">/ {target}g</span>
         </span>
       </div>
       <div className="h-2 bg-bg-overlay rounded-full overflow-hidden">
@@ -161,8 +161,10 @@ export function MaJournee() {
     isLoading,
     markSupplementTaken,
     logProtein,
+    reload,
   } = useDailyPlan()
   const { isSupported, isSubscribed, isLoading: pushLoading, subscribe } = usePushNotifications()
+  const [showScoreInfo, setShowScoreInfo] = useState(false)
 
   if (!profile) return null
 
@@ -170,22 +172,40 @@ export function MaJournee() {
   const dateLabel = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
+    <div className="page-container">
     <div className="flex flex-col gap-5 px-4 pb-8 safe-top">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="pt-2">
-        <p className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
+        <p className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.7)]">
           {dateLabel}
         </p>
         <h1 className="font-display text-4xl text-[#f0ede6] leading-none mt-1">MA JOURNÉE</h1>
       </div>
 
       {/* ── Day score ──────────────────────────────────────────────────── */}
-      <div className="flex justify-center py-2">
+      <div className="flex flex-col items-center py-2">
         {isLoading ? (
           <div className="w-[140px] h-[140px] rounded-full bg-bg-elevated animate-pulse" />
         ) : (
-          <ScoreRing score={dayScore} />
+          <button
+            onClick={() => setShowScoreInfo(v => !v)}
+            className="flex flex-col items-center gap-1 active:opacity-70"
+          >
+            <ScoreRing score={dayScore} />
+            <span className="font-mono text-xs text-accent-yellow/60 mt-0.5">ℹ︎ Comment est calculé ce score ?</span>
+          </button>
+        )}
+        {showScoreInfo && (
+          <div className="mt-2 px-3 py-2.5 bg-bg-elevated rounded-xl border border-border-subtle">
+            <p className="font-body text-xs text-[rgba(240,237,230,0.7)] leading-relaxed">
+              <span className="text-[#f0ede6] font-semibold">Score calculé à partir de :</span><br />
+              • Stress : −20 pts si ≥ 4/5<br />
+              • Courbatures : −15 pts si ≥ 4/5<br />
+              • Motivation : +8 pts si ≥ 4/5<br />
+              Score de base : 80. Plus c'est haut, mieux tu récupères.
+            </p>
+          </div>
         )}
       </div>
 
@@ -193,8 +213,8 @@ export function MaJournee() {
       {dailyInsights && (
         <div className="ai-card">
           <div className="flex items-center gap-2 mb-2">
-            <Zap size={14} className="text-accent-blue" />
-            <span className="text-xs font-mono uppercase tracking-widest text-accent-blue">ANALYSE APEX</span>
+            <Zap size={14} className="text-accent-yellow" />
+            <span className="text-xs font-mono uppercase tracking-widest text-accent-yellow">ANALYSE APEX</span>
           </div>
           <p className="text-sm text-[rgba(240,237,230,0.8)] leading-relaxed">{dailyInsights}</p>
         </div>
@@ -214,7 +234,7 @@ export function MaJournee() {
       {/* ── Supplement checklist ────────────────────────────────────────── */}
       {supplementTimeline.length > 0 && (
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.4)]">
+          <p className="text-xs font-mono uppercase tracking-widest text-[rgba(240,237,230,0.7)]">
             PROTOCOLE SUPPLÉMENTS
           </p>
           {supplementTimeline.map((entry, i) => {
@@ -233,14 +253,17 @@ export function MaJournee() {
 
       {/* ── No plan yet placeholder ─────────────────────────────────────── */}
       {!isLoading && !dailyInsights && supplementTimeline.length === 0 && (
-        <div className="card-elevated flex flex-col gap-2 items-center py-8 text-center">
-          <span className="text-3xl">⏰</span>
-          <p className="font-body text-sm text-[rgba(240,237,230,0.6)]">
-            Ton plan journalier est généré chaque matin à 5h par APEX.
+        <div className="card-elevated flex flex-col gap-3 items-center py-8 text-center">
+          <span className="text-3xl">📋</span>
+          <p className="font-body text-sm text-[rgba(240,237,230,0.7)]">
+            Aucun plan pour aujourd'hui encore.
           </p>
-          <p className="font-body text-xs text-[rgba(240,237,230,0.35)]">
-            Active les notifications pour le recevoir dès le réveil.
-          </p>
+          <button
+            onClick={reload}
+            className="btn-primary px-6"
+          >
+            Générer mon plan du jour
+          </button>
         </div>
       )}
 
@@ -256,11 +279,12 @@ export function MaJournee() {
         </button>
       )}
       {isSubscribed && (
-        <div className="flex items-center gap-2 justify-center text-xs text-[rgba(240,237,230,0.35)] font-mono">
+        <div className="flex items-center gap-2 justify-center text-xs text-[rgba(240,237,230,0.6)] font-mono">
           <BellOff size={12} />
           Notifications actives
         </div>
       )}
+    </div>
     </div>
   )
 }

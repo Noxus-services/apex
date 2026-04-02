@@ -44,7 +44,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest mb-0.5">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest mb-0.5">
             Bilan de la semaine
           </p>
           <p className="font-body text-sm text-[rgba(240,237,230,0.55)]">{dateRange}</p>
@@ -58,7 +58,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
           >
             {review.progressScore}
           </span>
-          <span className="font-body text-[9px] text-[rgba(240,237,230,0.4)] mt-0.5">/10</span>
+          <span className="font-body text-[9px] text-[rgba(240,237,230,0.7)] mt-0.5">/10</span>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
       <div className="flex gap-3">
         <div className="flex-1 bg-bg-elevated rounded-lg px-3 py-2 flex flex-col items-center">
           <span className="font-display text-xl text-[#f0ede6]">{review.sessionsCount}</span>
-          <span className="font-body text-[10px] text-[rgba(240,237,230,0.4)]">séances</span>
+          <span className="font-body text-[10px] text-[rgba(240,237,230,0.7)]">séances</span>
         </div>
         <div className="flex-1 bg-bg-elevated rounded-lg px-3 py-2 flex flex-col items-center">
           <span className="font-display text-xl text-[#f0ede6]">
@@ -79,14 +79,14 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
               ? `${(review.totalVolume / 1000).toFixed(1)}t`
               : `${Math.round(review.totalVolume)}kg`}
           </span>
-          <span className="font-body text-[10px] text-[rgba(240,237,230,0.4)]">volume</span>
+          <span className="font-body text-[10px] text-[rgba(240,237,230,0.7)]">volume</span>
         </div>
       </div>
 
       {/* Analysis text */}
       {analysisLines.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Analyse
           </p>
           {analysisLines.map((line, i) => {
@@ -105,7 +105,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
             if (isBullet) {
               return (
                 <div key={i} className="flex items-start gap-2">
-                  <span className="text-accent-blue mt-0.5 text-xs flex-shrink-0">•</span>
+                  <span className="text-accent-yellow mt-0.5 text-xs flex-shrink-0">•</span>
                   <p className="font-body text-sm text-[rgba(240,237,230,0.75)] leading-relaxed">{text}</p>
                 </div>
               )
@@ -122,7 +122,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
       {/* Key insights */}
       {review.keyInsights && review.keyInsights.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Points clés
           </p>
           {review.keyInsights.map((insight, i) => (
@@ -130,7 +130,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
               key={i}
               className="flex items-start gap-3 bg-bg-elevated rounded-lg px-3 py-2"
             >
-              <span className="text-accent-blue text-sm flex-shrink-0 mt-0.5">✦</span>
+              <span className="text-accent-yellow text-sm flex-shrink-0 mt-0.5">✦</span>
               <p className="font-body text-sm text-[rgba(240,237,230,0.75)] leading-relaxed">{insight}</p>
             </div>
           ))}
@@ -140,7 +140,7 @@ export function WeeklyReviewCard({ review }: WeeklyReviewProps) {
       {/* Next week adjustments */}
       {review.nextWeekAdjustments && (
         <div className="flex flex-col gap-2">
-          <p className="font-body text-[10px] text-[rgba(240,237,230,0.35)] uppercase tracking-widest">
+          <p className="font-body text-[10px] text-[rgba(240,237,230,0.6)] uppercase tracking-widest">
             Semaine prochaine
           </p>
           <div className="bg-accent-yellow/5 border border-accent-yellow/20 rounded-lg px-3 py-3">
