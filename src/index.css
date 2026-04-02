@@ -1,62 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* ── Reset & shell ─────────────────────────────────────── */
   html {
-    font-size: 16px;
+    font-size: 17px;
     -webkit-text-size-adjust: 100%;
     height: 100%;
+    overflow: hidden; /* belt-and-suspenders: prevents any body overflow from leaking */
   }
 
   body {
     height: 100%;
-    background: #050505; /* outer frame on desktop */
+    background: #030303;
     color: #f0ede6;
     font-family: 'DM Sans', sans-serif;
-    overflow: hidden;          /* no body scroll ever */
+    overflow: hidden;
     overscroll-behavior: none;
+    max-width: 100vw; /* nothing can push past viewport width */
   }
 
-  /* ── Phone shell — the entire app lives here ───────────── */
+  /* ── Phone shell ─────────────────────────────────────────── */
   #root {
-    height: 100dvh;            /* dynamic viewport: handles mobile address bar */
+    height: 100dvh;
     max-width: 430px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background: #0a0a0a;
-    /* subtle border on desktop so it looks like a phone */
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px rgba(0,0,0,0.8);
-    /* make #root the containing block for fixed-position descendants
-       so overlays, bottom sheets and FABs stay inside the phone shell */
+    background: #0d0d0d;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 40px 100px rgba(0,0,0,0.9);
     transform: translateZ(0);
   }
 
   * { -webkit-tap-highlight-color: transparent; }
 
-  /* ── Number inputs — remove spinners ───────────────────── */
   input[type=number] { -moz-appearance: textfield; }
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-  /* ── Time input — dark style ───────────────────────────── */
   input[type=time]::-webkit-calendar-picker-indicator {
-    filter: invert(1) opacity(0.4);
+    filter: invert(1) opacity(0.5);
   }
 
-  /* ── Scrollbar — minimal ───────────────────────────────── */
   ::-webkit-scrollbar { width: 2px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
 }
 
 @layer components {
-  /* ── Scrollable page area (sits in flex-1 of #root) ────── */
+
+  /* ── Layout ──────────────────────────────────────────────── */
   .page-scroll {
     flex: 1;
     overflow-y: auto;
@@ -65,7 +64,6 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* ── Fixed-height page (no scroll — e.g. Active Session) ─ */
   .page-fixed {
     flex: 1;
     overflow: hidden;
@@ -73,56 +71,203 @@
     flex-direction: column;
   }
 
-  /* ── Onboarding — full overlay within #root ────────────── */
+  .page-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .onboarding-shell {
     position: absolute;
     inset: 0;
     z-index: 50;
-    background: #0a0a0a;
+    background: #0d0d0d;
     overflow: hidden;
   }
 
-  /* ── Bottom nav — in flow (not fixed) ──────────────────── */
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 16px);
+  }
+
+  /* ── Bottom Nav ──────────────────────────────────────────── */
   .bottom-nav {
     flex-shrink: 0;
-    background: rgba(17,17,17,0.97);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(13, 13, 13, 0.97);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border-top: 1px solid rgba(255,255,255,0.09);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* ── Cards ─────────────────────────────────────────────── */
-  .card { @apply bg-bg-surface border border-border-subtle rounded-md p-4; }
-  .card-elevated { @apply bg-bg-elevated border border-border-default rounded-lg p-4; }
-  .ai-card { @apply bg-accent-blue/5 border border-accent-blue/20 rounded-lg p-4; }
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card {
+    background: #161616;
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 18px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
 
-  /* ── Buttons ────────────────────────────────────────────── */
+  .card-elevated {
+    background: #1e1e1e;
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  /* ── APEX AI Card ────────────────────────────────────────── */
+  .ai-card {
+    background: linear-gradient(135deg, rgba(232,255,71,0.08) 0%, rgba(232,255,71,0.03) 100%);
+    border: 1px solid rgba(232,255,71,0.25);
+    border-radius: 18px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232,255,71,0.6), transparent);
+    pointer-events: none;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-accent-yellow text-bg-base font-body font-medium
-           rounded-md px-6 h-16 text-base
-           active:scale-95 transition-transform duration-100
-           flex items-center justify-center gap-2 select-none;
+    background: #e8ff47;
+    color: #0a0a0a;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: 16px;
+    height: 58px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 80ms, opacity 80ms;
+    letter-spacing: 0.01em;
   }
+
+  .btn-primary:active { transform: scale(0.96); }
+  .btn-primary:disabled { opacity: 0.35; pointer-events: none; }
+
   .btn-secondary {
-    @apply bg-bg-elevated border border-border-default text-[#f0ede6]
-           rounded-md px-6 h-14 text-base
-           active:scale-95 transition-transform duration-100
-           flex items-center justify-center gap-2 select-none;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #f0ede6;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    border-radius: 16px;
+    height: 54px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 80ms, background 120ms;
   }
+
+  .btn-secondary:active { transform: scale(0.96); background: rgba(255,255,255,0.12); }
+  .btn-secondary:disabled { opacity: 0.35; pointer-events: none; }
+
   .btn-danger {
-    @apply bg-accent-red/10 border border-accent-red/30 text-accent-red
-           rounded-md px-6 h-14 text-base
-           active:scale-95 transition-transform duration-100
-           flex items-center justify-center gap-2 select-none;
+    background: rgba(255,68,68,0.10);
+    border: 1px solid rgba(255,68,68,0.28);
+    color: #ff5555;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    border-radius: 16px;
+    height: 54px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 80ms;
+  }
+  .btn-danger:active { transform: scale(0.96); }
+
+  /* ── Section labels ──────────────────────────────────────── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: rgba(240,237,230,0.55);
   }
 
-  /* ── Typography helpers ─────────────────────────────────── */
-  .number-display { @apply font-display text-[#f0ede6] leading-none; }
-  .data-value { @apply font-mono text-[#f0ede6]; }
-
-  /* ── Safe-area top padding for page headers ─────────────── */
-  .safe-top {
-    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+  /* ── Input ───────────────────────────────────────────────── */
+  .input-base {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    height: 54px;
+    padding: 0 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    color: #f0ede6;
+    outline: none;
+    transition: border-color 120ms;
+    width: 100%;
   }
+  .input-base:focus {
+    border-color: rgba(232,255,71,0.5);
+  }
+  .input-base::placeholder {
+    color: rgba(240,237,230,0.3);
+  }
+
+  /* ── Number display ──────────────────────────────────────── */
+  .number-display { font-family: 'Bebas Neue', sans-serif; color: #f0ede6; line-height: 1; }
+  .data-value { font-family: 'JetBrains Mono', monospace; color: #f0ede6; }
 }
+
+/* ── Animations ──────────────────────────────────────────────── */
+@keyframes spring-in {
+  0% { transform: scale(0.88) translateY(8px); opacity: 0; }
+  60% { transform: scale(1.02) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes fade-up {
+  0% { transform: translateY(14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232,255,71,0); }
+  50% { box-shadow: 0 0 20px 6px rgba(232,255,71,0.15); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-spring-in { animation: spring-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-fade-up { animation: fade-up 0.3s ease-out both; }
+.animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }

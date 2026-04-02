@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -17,17 +16,6 @@ export function BottomSheet({
   height = '80vh',
   title,
 }: BottomSheetProps) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [isOpen])
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -55,7 +43,7 @@ export function BottomSheet({
                 <span className="font-display text-lg tracking-wide">{title}</span>
                 <button
                   onClick={onClose}
-                  className="text-[rgba(240,237,230,0.4)] text-2xl leading-none"
+                  className="text-[rgba(240,237,230,0.7)] text-2xl leading-none"
                 >
                   ×
                 </button>
